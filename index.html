@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RL Mobile Diag</title>
+    <style>
+        body { background-color: #000; color: #fff; font-family: sans-serif; padding: 20px; }
+        .box { border: 1px solid #555; padding: 10px; margin-bottom: 10px; border-radius: 8px; }
+        button { width: 100%; padding: 15px; font-size: 1.2rem; margin-bottom: 10px; border-radius: 5px; border:none; cursor:pointer;}
+        .btn-gps { background-color: #bb86fc; color: #000; }
+        .btn-save { background-color: #03dac6; color: #000; }
+    </style>
+</head>
+<body>
+
+    <h2>診断モード</h2>
+    
+    <div class="box">
+        <p>1. まず画面が出ているか確認</p>
+        <p>現在の状態: <span id="status" style="color:yellow">待機中</span></p>
+    </div>
+
+    <div class="box">
+        <p>2. GPSボタンを押して許可が出るか確認</p>
+        <button class="btn-gps" onclick="testGPS()">GPSテスト開始</button>
+        <div id="gps_result">緯度経度: ---</div>
+    </div>
+
+    <div class="box">
+        <p>3. 保存テスト</p>
+        <input type="text" id="test_input" placeholder="テスト入力" style="width:90%; padding:10px; font-size:16px;">
+        <button class="btn-save" onclick="testSave()">保存テスト</button>
+        <div id="save_result">履歴: 0</div>
+    </div>
+
+    <script>
+        // 画面が開いた瞬間に何かを動かすのをやめました
+
+        function testGPS() {
+            document.getElementById('status').innerText = "GPS要求中...";
+            
+            if (!navigator.geolocation) {
+                alert("このアプリ/ブラウザはGPS非対応です");
+                return;
+            }
+
+            // KoderなどのWebView向けに、タイムアウトを短めに設定
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const lat = pos.coords.latitude;
+                    const lon = pos.coords.longitude;
+                    document.getElementById('gps_result').innerText = `成功: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+                    document.getElementById('status').innerText = "GPS成功";
+                    alert("GPS取得成功！\n" + lat + ", " + lon);
+                },
+                (err) => {
+                    document.getElementById('status').innerText = "GPSエラー: " + err.code;
+                    alert("GPSエラー発生\nCode: " + err.code + "\nMsg: " + err.message);
+                    // Code 1: 許可拒否, Code 2: 利用不可, Code 3: タイムアウト
+                },
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+            );
+        }
+
+        function testSave() {
+            const val = document.getElementById('test_input').value;
+            if(!val) { alert("文字を入れてね"); return; }
+            alert("保存ロジック動作確認OK: " + val);
+            document.getElementById('save_result').innerText = "保存OK";
+        }
+    </script>
+</body>
+</html>
