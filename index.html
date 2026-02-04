@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Radio Log Mobile v2.2</title>
+    <title>Radio Log Mobile v2.4</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; background: #f0f2f5; margin: 0; padding: 10px; color: #333; }
         h2 { text-align: center; margin: 5px 0 15px 0; color: #007bff; font-size: 1.2rem; }
@@ -18,6 +18,7 @@
         .btn-gps { background: #e3f2fd; color: #007bff; border: 1px solid #b3d7ff; }
         .btn-save { background: #28a745; color: white; box-shadow: 0 4px 6px rgba(40,167,69,0.2); margin-top: 10px;}
         .btn-export { background: #ff9800; color: white; }
+        .btn-copy { background: #17a2b8; color: white; margin-bottom: 5px; } /* コピーボタン */
         .btn-clear { background: #dc3545; color: white; font-size: 14px; padding: 8px; margin-top: 5px;}
         .btn-now { width: auto; padding: 10px; font-size: 12px; background: #6c757d; color: white; margin-bottom: 5px; margin-left: 5px;}
         
@@ -34,7 +35,7 @@
 </head>
 <body>
 
-    <h2>📡 Radio Logbook Mobile v2.2</h2>
+    <h2>📡 Radio Logbook Mobile v2.4</h2>
 
     <div class="card">
         <div class="row">
@@ -52,7 +53,14 @@
                     <button type="button" class="btn-now" onclick="setNow('time')">今</button>
                 </div>
             </div>
-             </div>
+            <div class="col" style="flex:2;">
+                <label>終了時刻</label>
+                <div style="display:flex;">
+                    <input type="time" id="end_time">
+                    <button type="button" class="btn-now" onclick="setNow('end_time')">今</button>
+                </div>
+            </div>
+        </div>
 
         <button type="button" class="btn-gps" onclick="getGPSAndWeather()">🛰️ GPS & 天気取得</button>
         <input type="text" id="my_location" placeholder="運用地 (緯度,経度)">
@@ -103,7 +111,10 @@
 
     <div class="card">
         <h3 style="margin-top:0; font-size:16px;">保存済み: <span id="count">0</span>件</h3>
-        <button type="button" class="btn-export" onclick="exportJSON()">📤 JSON書出 (PC連携用)</button>
+        
+        <button type="button" class="btn-copy" onclick="copyJSON()">📋 データをコピー (メール貼付用)</button>
+        
+        <button type="button" class="btn-export" onclick="exportJSON()">📤 JSON書出 (ファイル保存)</button>
         <ul id="logList"></ul>
         <div style="text-align: right;">
             <button type="button" class="btn-clear" onclick="clearLogs()">全削除</button>
@@ -119,7 +130,6 @@
         let logs = JSON.parse(localStorage.getItem('radio_logs')) || [];
         renderLogs();
 
-        // 天気コード変換表
         const weatherCodes = {
             0: "快晴", 1: "晴れ", 2: "一部曇", 3: "曇り",
             45: "霧", 48: "霧氷", 51: "霧雨", 53: "霧雨", 55: "霧雨",
@@ -127,12 +137,10 @@
             71: "雪", 73: "雪", 75: "大雪", 95: "雷雨", 96: "雷雨(雹)"
         };
 
-        // 時刻セット
         function setNow(id) {
             document.getElementById(id).value = new Date().toTimeString().slice(0, 5);
         }
 
-        // GPS & 天気取得
         function getGPSAndWeather() {
             if (!navigator.geolocation) { alert("GPS非対応です"); return; }
             const btn = document.querySelector('.btn-gps');
@@ -147,40 +155,37 @@
                 try {
                     btn.innerText = "天気取得中...";
                     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,weather_code&timezone=Asia%2FTokyo`;
-                    
                     const res = await fetch(url);
                     if(res.ok) {
                         const data = await res.json();
                         const cur = data.current;
-                        
                         document.getElementById('temp').value = cur.temperature_2m;
                         document.getElementById('humid').value = cur.relative_humidity_2m;
                         document.getElementById('press').value = cur.surface_pressure;
                         document.getElementById('wind').value = cur.wind_speed_10m;
-                        
-                        const wCode = cur.weather_code;
-                        document.getElementById('weather').value = weatherCodes[wCode] || "不明";
-                        
+                        document.getElementById('weather').value = weatherCodes[cur.weather_code] || "不明";
                         btn.innerText = "✅ GPS & 天気完了";
                     } else { throw new Error("API Error"); }
                 } catch(e) {
                     btn.innerText = "⚠️ GPSのみ完了 (オフライン)";
                 }
                 setTimeout(() => btn.innerText = "🛰️ GPS & 天気取得", 3000);
-
             }, err => {
                 alert("GPSエラー: " + err.message);
                 btn.innerText = "🛰️ GPS & 天気取得";
             }, { enableHighAccuracy: true, timeout: 10000 });
         }
 
-        // ログ追加
         function addLog() {
             const callInput = document.getElementById('callsign');
-            callInput.value = callInput.value.toUpperCase(); // 自動大文字化は維持
+            callInput.value = callInput.value.toUpperCase();
+
+            const endTimeVal = document.getElementById('end_time').value;
+            const endTimeStr = endTimeVal ? `${document.getElementById('date').value} ${endTimeVal}` : "";
 
             const entry = {
                 start_time: `${document.getElementById('date').value} ${document.getElementById('time').value}`,
+                end_time: endTimeStr,
                 callsign: callInput.value,
                 band: document.getElementById('band').value,
                 channel: document.getElementById('channel').value,
@@ -188,7 +193,6 @@
                 my_location: document.getElementById('my_location').value,
                 location: document.getElementById('location').value,
                 content: document.getElementById('content').value,
-                
                 weather: document.getElementById('weather').value,
                 temperature: document.getElementById('temp').value,
                 humidity: document.getElementById('humid').value,
@@ -201,12 +205,10 @@
             logs.unshift(entry);
             saveAndRender();
             
-            // 入力クリア（連続運用のために場所・天気・日時は残す）
             document.getElementById('callsign').value = "";
             document.getElementById('rs').value = "";
             document.getElementById('content').value = "";
-            
-            // 時刻を現在に更新
+            document.getElementById('end_time').value = "";
             setNow('time');
             
             const btn = document.querySelector('.btn-save');
@@ -217,6 +219,18 @@
                 btn.innerText = originalText;
                 btn.style.background = "";
             }, 1500);
+        }
+
+        // ★追加: クリップボードにコピー
+        function copyJSON() {
+            if(logs.length === 0) { alert("データがありません"); return; }
+            const jsonStr = JSON.stringify(logs, null, 2);
+            
+            navigator.clipboard.writeText(jsonStr).then(() => {
+                alert("📋 コピーしました！\nメールアプリなどを開いて「ペースト」してください。");
+            }, () => {
+                alert("コピーに失敗しました。");
+            });
         }
 
         function exportJSON() {
@@ -241,7 +255,6 @@
             const list = document.getElementById('logList');
             list.innerHTML = "";
             document.getElementById('count').innerText = logs.length;
-            
             logs.forEach((log, index) => {
                 const li = document.createElement('li');
                 li.className = "log-item";
@@ -257,12 +270,11 @@
         }
 
         function deleteLog(index) {
-            if(confirm("このログを削除しますか？")) {
+            if(confirm("削除しますか？")) {
                 logs.splice(index, 1);
                 saveAndRender();
             }
         }
-
         function clearLogs() {
             if(confirm("全てのデータを削除しますか？")) {
                 logs = [];
