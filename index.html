@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Radio Log Mobile v2.8</title>
+    <title>Radio Log Mobile v2.9</title>
     <style>
         :root {
             --primary: #007bff;
@@ -45,16 +45,13 @@
         .btn-save { background: var(--success); color: white; font-size: 20px; padding: 16px; box-shadow: 0 4px 10px rgba(40,167,69,0.3); }
         .btn-gps { background: #e3f2fd; color: var(--primary); font-size: 14px; padding: 10px; border: 1px solid #b3d7ff;}
         
-        /* 履歴リスト */
-        #logList { list-style: none; padding: 0; margin: 0; }
-        .log-item { background: white; padding: 12px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
-        .log-main { font-weight: bold; font-size: 16px; }
-        .log-sub { font-size: 12px; color: #888; }
-        
-        /* その他 */
+        /* フッターボタン群 */
         .footer-area { margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px; }
+        
+        /* ★スマート転送ボタン */
+        .btn-share { background: #6610f2; color: white; margin-bottom: 8px; font-size: 16px; }
+        
         .btn-copy { background: #17a2b8; color: white; margin-bottom: 8px; }
-        .btn-export { background: #ff9800; color: white; }
         .btn-clear { background: transparent; color: #dc3545; font-size: 12px; border: 1px solid #eee; width: auto; margin: 10px auto; padding: 8px 15px;}
     </style>
 </head>
@@ -131,8 +128,10 @@
         <input type="hidden" id="humid"><input type="hidden" id="press"><input type="hidden" id="wind">
 
         <h3 style="margin:10px 0 5px; font-size:15px;">保存済み: <span id="count">0</span>件</h3>
-        <button type="button" class="btn-copy" onclick="copyJSON()">📋 データコピー (メール用)</button>
-        <button type="button" class="btn-export" onclick="exportJSON()">📤 JSON保存</button>
+        
+        <button type="button" class="btn-share" onclick="smartShare()">📤 スマート転送 (AirDrop/Mail)</button>
+        
+        <button type="button" class="btn-copy" onclick="copyJSON()">📋 テキストコピー (予備)</button>
         
         <ul id="logList" style="margin-top:10px; border-top:1px solid #eee;"></ul>
         <div style="text-align:center;">
@@ -154,7 +153,6 @@
                 document.getElementById('loc-disp').innerText = "前回値使用";
             }
             renderLogs();
-            // ページを開いたときも一応GPS取る
             getGPSAndWeather();
         });
 
@@ -162,22 +160,17 @@
             document.getElementById(id).value = new Date().toTimeString().slice(0, 5);
         }
 
-        // ★新機能: 開始ボタン用関数
         function startQSO() {
-            setNow('time');       // 時間セット
-            getGPSAndWeather();   // GPS & 天気セット
+            setNow('time');
+            getGPSAndWeather();
         }
 
         function getGPSAndWeather() {
             if (!navigator.geolocation) return;
             const disp = document.getElementById('loc-disp');
             const btn = document.querySelector('.btn-start');
-            
-            // 視覚的フィードバック（ボタンの文字を変える）
             const originalText = btn.innerText;
-            if(originalText.includes("交信開始")) {
-                btn.innerText = "🛰️ 測位中...";
-            }
+            if(originalText.includes("交信開始")) btn.innerText = "🛰️ 測位中...";
             disp.innerText = "測位中...";
 
             navigator.geolocation.getCurrentPosition(async pos => {
@@ -185,8 +178,6 @@
                 const lon = pos.coords.longitude.toFixed(5);
                 document.getElementById('my_location').value = `${lat}, ${lon}`;
                 disp.innerText = `${lat}, ${lon}`;
-                
-                // ボタン戻す
                 if(originalText.includes("交信開始")) btn.innerText = originalText;
 
                 try {
@@ -214,7 +205,6 @@
         function addLog() {
             const callInput = document.getElementById('callsign');
             const callsign = callInput.value.trim(); 
-            
             if(!callsign) { alert("コールサインを入力してください"); return; }
             
             const endTimeVal = document.getElementById('end_time').value;
@@ -265,6 +255,34 @@
                 btn.innerText = "💾 ログを保存";
             }, 1000);
             window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+
+        // ★新機能: Web Share APIによるスマート転送
+        async function smartShare() {
+            let logs = JSON.parse(localStorage.getItem('radio_logs')) || [];
+            if(logs.length === 0) { alert("データなし"); return; }
+
+            const jsonStr = JSON.stringify(logs, null, 2);
+            const fileName = `mobile_${new Date().toISOString().slice(0,10)}.json`;
+            const file = new File([jsonStr], fileName, {type: "application/json"});
+
+            // 最新のiOS/Androidならファイル共有が可能
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Radio Log',
+                        text: '交信ログデータです'
+                    });
+                } catch (err) {
+                    // キャンセル時などは何もしない
+                    console.log("Share cancelled or failed", err);
+                }
+            } else {
+                // 非対応ブラウザの場合は旧方式にフォールバック
+                alert("このブラウザはファイル直接共有に対応していません。\nテキストコピーかダウンロードを使用します。");
+                exportJSON();
+            }
         }
 
         function copyJSON() {
