@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Radio Log Mobile v2.6</title>
+    <title>Radio Log Mobile v2.8</title>
     <style>
         :root {
             --primary: #007bff;
@@ -30,7 +30,7 @@
         input:focus, select:focus, textarea:focus { border-color: var(--primary); outline: none; background: #fff; }
         
         /* 特大コールサイン入力 */
-        #callsign { font-size: 24px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; padding: 14px; }
+        #callsign { font-size: 20px; font-weight: bold; padding: 14px; }
 
         /* ボタン */
         button { 
@@ -40,7 +40,7 @@
         }
         button:active { transform: scale(0.98); opacity: 0.9; }
 
-        .btn-start { background: #007bff; color: white; font-size: 18px; margin-bottom: 15px; }
+        .btn-start { background: #007bff; color: white; font-size: 18px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,123,255,0.2); }
         .btn-end { background: #6c757d; color: white; font-size: 16px; margin-bottom: 15px; }
         .btn-save { background: var(--success); color: white; font-size: 20px; padding: 16px; box-shadow: 0 4px 10px rgba(40,167,69,0.3); }
         .btn-gps { background: #e3f2fd; color: var(--primary); font-size: 14px; padding: 10px; border: 1px solid #b3d7ff;}
@@ -61,33 +61,32 @@
 <body>
 
     <div class="card">
-        <button type="button" class="btn-start" onclick="setNow('time')">⏱️ 交信開始 (Now)</button>
+        <button type="button" class="btn-start" onclick="startQSO()">⏱️ 交信開始 (Auto GPS)</button>
         <div style="display:flex; gap:10px; margin-bottom:15px;">
             <div style="flex:1;">
                 <label>開始時刻</label>
                 <input type="time" id="time">
             </div>
-             </div>
+        </div>
 
         <label style="color:var(--primary); font-size:14px;">相手局コールサイン</label>
-        <input type="text" id="callsign" placeholder="JO1ZYX" autocapitalize="characters">
+        <input type="text" id="callsign" placeholder="例: トウキョウAB123">
         
         <div class="row" style="margin-top:12px;">
             <div class="col" style="flex:1.2;">
                 <label>Band (前回維持)</label>
                 <select id="band">
-                    <option value="市民ラジオ/CB">CB</option>
-                    <option value="デジタル簡易無線/DCR">DCR</option>
-                    <option value="特定小電力無線/SLPR">特小</option>
-                    <option value="デジタル小電力コミュニティ/LCR">LCR</option>
-                    <option value="アマチュア無線/Ham">Ham</option>
+                    <option value="市民ラジオ/CB">CB (市民ラジオ)</option>
+                    <option value="デジタル簡易無線/DCR">DCR (デジ簡)</option>
+                    <option value="特定小電力無線/SLPR">特小 (SLPR)</option>
+                    <option value="デジタル小電力コミュニティ/LCR">LCR (デジコミ)</option>
                 </select>
             </div>
         </div>
 
         <div class="row">
             <div class="col"><label>Ch</label><input type="text" id="channel" placeholder="ch" inputmode="decimal"></div>
-            <div class="col"><label>RS</label><input type="text" id="rs" placeholder="59/59" inputmode="decimal"></div>
+            <div class="col"><label>RS</label><input type="text" id="rs" placeholder="5x/5x" inputmode="decimal"></div>
         </div>
 
         <div style="margin-bottom:12px;">
@@ -118,7 +117,7 @@
         <label>📍 位置情報 & 天気 (自動取得)</label>
         <div class="row">
             <div class="col">
-                 <button type="button" class="btn-gps" onclick="getGPSAndWeather()">🛰️ GPS/天気 更新</button>
+                 <button type="button" class="btn-gps" onclick="getGPSAndWeather()">🛰️ 手動更新</button>
             </div>
         </div>
         <div style="font-size:12px; color:#666; background:#f9f9f9; padding:8px; border-radius:6px; margin-bottom:10px;">
@@ -142,23 +141,20 @@
     </div>
 
     <script>
-        // 設定
         const weatherCodes = { 0:"快晴", 1:"晴れ", 2:"一部曇", 3:"曇り", 45:"霧", 61:"雨", 80:"驟雨", 95:"雷雨" };
         
         document.addEventListener('DOMContentLoaded', () => {
             const now = new Date();
             document.getElementById('date').value = now.toISOString().slice(0, 10);
             
-            // 前回設定の復元
             const pref = JSON.parse(localStorage.getItem('radio_pref')) || {};
             if(pref.band) document.getElementById('band').value = pref.band;
             if(pref.my_location) {
                 document.getElementById('my_location').value = pref.my_location;
                 document.getElementById('loc-disp').innerText = "前回値使用";
             }
-            
             renderLogs();
-            // 起動時にGPS取得を試みる（許可済みなら即反映）
+            // ページを開いたときも一応GPS取る
             getGPSAndWeather();
         });
 
@@ -166,18 +162,33 @@
             document.getElementById(id).value = new Date().toTimeString().slice(0, 5);
         }
 
+        // ★新機能: 開始ボタン用関数
+        function startQSO() {
+            setNow('time');       // 時間セット
+            getGPSAndWeather();   // GPS & 天気セット
+        }
+
         function getGPSAndWeather() {
             if (!navigator.geolocation) return;
             const disp = document.getElementById('loc-disp');
-            disp.innerText = "測位中...";
+            const btn = document.querySelector('.btn-start');
             
+            // 視覚的フィードバック（ボタンの文字を変える）
+            const originalText = btn.innerText;
+            if(originalText.includes("交信開始")) {
+                btn.innerText = "🛰️ 測位中...";
+            }
+            disp.innerText = "測位中...";
+
             navigator.geolocation.getCurrentPosition(async pos => {
                 const lat = pos.coords.latitude.toFixed(5);
                 const lon = pos.coords.longitude.toFixed(5);
                 document.getElementById('my_location').value = `${lat}, ${lon}`;
                 disp.innerText = `${lat}, ${lon}`;
                 
-                // 天気API
+                // ボタン戻す
+                if(originalText.includes("交信開始")) btn.innerText = originalText;
+
                 try {
                     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,weather_code&timezone=Asia%2FTokyo`;
                     const res = await fetch(url);
@@ -185,29 +196,25 @@
                         const data = await res.json();
                         const cur = data.current;
                         const wName = weatherCodes[cur.weather_code] || "不明";
-                        
                         document.getElementById('weather-disp').innerText = wName;
                         document.getElementById('temp-disp').innerText = cur.temperature_2m + "℃";
-                        
                         document.getElementById('weather').value = wName;
                         document.getElementById('temp').value = cur.temperature_2m;
                         document.getElementById('humid').value = cur.relative_humidity_2m;
                         document.getElementById('press').value = cur.surface_pressure;
                         document.getElementById('wind').value = cur.wind_speed_10m;
                     }
-                } catch(e) {
-                    document.getElementById('weather-disp').innerText = "(オフライン)";
-                }
-            }, err => {
-                disp.innerText = "エラー: " + err.message;
+                } catch(e) { document.getElementById('weather-disp').innerText = "(オフライン)"; }
+            }, err => { 
+                disp.innerText = "エラー: " + err.message; 
+                if(originalText.includes("交信開始")) btn.innerText = originalText;
             }, { enableHighAccuracy: true });
         }
 
         function addLog() {
             const callInput = document.getElementById('callsign');
-            const callsign = callInput.value.toUpperCase();
+            const callsign = callInput.value.trim(); 
             
-            // 必須チェック（コールサインなしは保存不可）
             if(!callsign) { alert("コールサインを入力してください"); return; }
             
             const endTimeVal = document.getElementById('end_time').value;
@@ -230,12 +237,10 @@
                 wind_speed: document.getElementById('wind').value
             };
 
-            // 保存
             let logs = JSON.parse(localStorage.getItem('radio_logs')) || [];
             logs.unshift(entry);
             localStorage.setItem('radio_logs', JSON.stringify(logs));
 
-            // 設定記憶 (Band, Location)
             localStorage.setItem('radio_pref', JSON.stringify({
                 band: entry.band,
                 my_location: entry.my_location
@@ -243,16 +248,14 @@
 
             renderLogs();
             
-            // クリア処理 (Band, Location, Dateは残す)
             callInput.value = "";
             document.getElementById('channel').value = "";
             document.getElementById('rs').value = "";
             document.getElementById('location').value = "";
             document.getElementById('content').value = "";
             document.getElementById('end_time').value = "";
-            document.getElementById('time').value = ""; // 開始時刻もクリア（次の交信で「開始」を押させるため）
+            document.getElementById('time').value = ""; 
 
-            // 完了エフェクト
             const btn = document.querySelector('.btn-save');
             const originalColor = btn.style.background;
             btn.style.background = "#28a745";
@@ -261,8 +264,6 @@
                 btn.style.background = originalColor;
                 btn.innerText = "💾 ログを保存";
             }, 1000);
-            
-            // 最上部へスクロール（次の入力準備）
             window.scrollTo({top: 0, behavior: 'smooth'});
         }
 
@@ -287,14 +288,13 @@
             const list = document.getElementById('logList');
             list.innerHTML = "";
             document.getElementById('count').innerText = logs.length;
-            
             logs.forEach((log, index) => {
                 const li = document.createElement('li');
                 li.className = "log-item";
                 li.innerHTML = `
                     <div>
                         <div class="log-main">${log.callsign} <span style="font-size:12px; background:#eee; padding:2px 5px; border-radius:4px;">${log.band}</span></div>
-                        <div class="log-sub">${log.start_time.slice(11,16)} - ${log.end_time ? log.end_time.slice(11,16) : ''}</div>
+                        <div class="log-sub">${log.start_time.slice(11,16)}</div>
                     </div>
                     <button onclick="deleteLog(${index})" style="width:auto; padding:5px 10px; background:#f8f9fa; color:#dc3545; border:1px solid #ddd; font-size:12px;">削除</button>
                 `;
