@@ -3,236 +3,194 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RL Mobile</title>
+    <title>Radio Log Mobile</title>
     <style>
-        /* 野外視認性重視: ハイコントラスト・ダークモード */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #000000; color: #ffffff; margin: 0; padding: 10px; font-size: 16px; }
-        h1 { font-size: 1.1rem; color: #bb86fc; margin: 0 0 10px 0; border-bottom: 1px solid #333; padding-bottom: 5px; display: flex; justify-content: space-between; }
-        
-        .box { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-        .row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; background: #f0f2f5; margin: 0; padding: 10px; color: #333; }
+        h2 { text-align: center; margin: 5px 0 15px 0; color: #007bff; }
+        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
+        input, select, textarea { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        .row { display: flex; gap: 10px; }
         .col { flex: 1; }
         
-        label { display: block; font-size: 0.75rem; color: #aaa; margin-bottom: 4px; }
-        input, select { width: 100%; background: #333; border: 1px solid #555; color: #fff; padding: 10px; border-radius: 6px; box-sizing: border-box; font-size: 1.1rem; -webkit-appearance: none; }
-        input:focus, select:focus { border-color: #03dac6; outline: none; background: #444; }
-        
-        button { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; margin-bottom: 5px; }
-        .btn-env { background-color: #3700b3; color: #fff; }
-        .btn-save { background-color: #bb86fc; color: #000; font-size: 1.2rem; }
-        .btn-sub { background-color: #333; color: #fff; border: 1px solid #555; font-size: 0.9rem; padding: 10px; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; transition: opacity 0.2s; }
+        .btn-gps { background: #e3f2fd; color: #007bff; }
+        .btn-save { background: #28a745; color: white; }
+        .btn-export { background: #ff9800; color: white; }
+        .btn-clear { background: #dc3545; color: white; margin-top: 5px;}
+        button:active { opacity: 0.7; }
 
-        .data-disp { font-family: monospace; font-size: 0.9rem; color: #03dac6; line-height: 1.5; white-space: pre-wrap; min-height: 60px; }
-        
-        #gps_stat { font-weight: bold; color: #cf6679; font-size: 0.8rem; }
-        .ok { color: #03dac6 !important; }
-        
-        /* iPhoneのノッチ対策 */
-        @supports (padding-top: env(safe-area-inset-top)) {
-            body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
-        }
+        #logList { list-style: none; padding: 0; }
+        .log-item { background: white; padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .log-info { font-size: 14px; }
+        .log-time { font-size: 12px; color: #888; }
     </style>
 </head>
 <body>
 
-    <h1>
-        <span>Radio Logbook <span style="font-size:0.7em">Mobile</span></span>
-        <span id="clock" style="color:#fff">--:--</span>
-    </h1>
+    <h2>📡 Radio Logbook Mobile</h2>
 
-    <div class="box">
-        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-            <div>
-                <span id="gps_stat">GPS未測位</span> 
-                <span id="gl_disp" style="color:#bb86fc; margin-left:8px; font-weight:bold;">---</span>
-            </div>
-            <button class="btn-env" onclick="fetchEnv()" style="width:auto; padding:6px 12px; font-size:0.8rem">Web取得</button>
-        </div>
-        <div class="data-disp" id="env_res">データなし</div>
-    </div>
-
-    <div class="box">
+    <div class="card">
         <div class="row">
-            <div class="col" style="flex:1.5">
+            <div class="col">
+                <label>日付</label>
+                <input type="date" id="date">
+            </div>
+            <div class="col">
+                <label>時刻</label>
+                <input type="time" id="time">
+            </div>
+        </div>
+
+        <button type="button" class="btn-gps" onclick="getGPS()">🛰️ 現在地を取得 (GPS)</button>
+        <input type="text" id="my_location" placeholder="緯度, 経度 (または住所)">
+
+        <div class="row">
+            <div class="col">
                 <label>Callsign</label>
-                <input type="text" id="call" placeholder="JM1..." autocapitalize="characters">
+                <input type="text" id="callsign" placeholder="JO1ZYX" style="text-transform: uppercase;">
             </div>
             <div class="col">
                 <label>Band</label>
                 <select id="band">
-                    <option>CB</option><option>DCR</option><option>LCR</option><option>特小</option><option>アマ</option>
+                    <option>市民ラジオ/CB</option>
+                    <option>デジタル簡易無線/DCR</option>
+                    <option>特定小電力無線/SLPR</option>
+                    <option>デジタル小電力コミュニティ/LCR</option>
+                    <option>アマチュア無線/Ham</option>
                 </select>
             </div>
         </div>
+
         <div class="row">
-            <div class="col">
-                <label>My RS</label>
-                <input type="tel" id="rs_m" placeholder="59" style="text-align:center">
-            </div>
-            <div class="col">
-                <label>His RS</label>
-                <input type="tel" id="rs_h" placeholder="59" style="text-align:center">
-            </div>
-            <div class="col">
-                <label>Ch/Freq</label>
-                <input type="text" id="ch" placeholder="3ch">
-            </div>
+            <div class="col"><label>Ch</label><input type="text" id="channel"></div>
+            <div class="col"><label>RS</label><input type="text" id="rs" placeholder="59/59"></div>
         </div>
-        <div class="row">
-            <div class="col">
-                <label>Memo</label>
-                <input type="text" id="memo" placeholder="備考">
-            </div>
-        </div>
-        <button class="btn-save" onclick="saveLog()">ログ保存 (ENTRY)</button>
+
+        <label>相手地 / 備考</label>
+        <input type="text" id="location" placeholder="相手の運用地など">
+        
+        <label>コメント</label>
+        <textarea id="content" rows="2" placeholder="交信内容メモ"></textarea>
+
+        <button type="button" class="btn-save" onclick="addLog()">💾 ログ保存 (List追加)</button>
     </div>
 
-    <div class="box">
-        <label>History (<span id="cnt">0</span>)</label>
-        <div id="hist" style="max-height:120px; overflow-y:auto; border-top:1px solid #444; margin-bottom:10px;"></div>
-        <div class="row">
-            <div class="col"><button class="btn-sub" onclick="dlJSON()">JSON出力</button></div>
-            <div class="col"><button class="btn-sub" onclick="wipe()" style="color:#cf6679">クリア</button></div>
-        </div>
+    <div class="card">
+        <h3 style="margin-top:0;">保存済みデータ: <span id="count">0</span>件</h3>
+        <button type="button" class="btn-export" onclick="exportJSON()">📤 PC用ファイル書出 (JSON)</button>
+        <ul id="logList"></ul>
+        <button type="button" class="btn-clear" onclick="clearLogs()">🗑️ 全データ削除</button>
     </div>
 
     <script>
-        let envData = {}, lat=null, lon=null, alt=null, logs=[];
-
         // 初期化
-        window.onload = () => {
-            logs = JSON.parse(localStorage.getItem('rl_mob_logs') || "[]");
-            refList();
-            setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}), 1000);
-            startGPS();
-        };
+        document.getElementById('date').valueAsDate = new Date();
+        document.getElementById('time').value = new Date().toTimeString().slice(0,5);
+        
+        // データの読み込み
+        let logs = JSON.parse(localStorage.getItem('radio_logs')) || [];
+        renderLogs();
 
-        // GPS開始
-        function startGPS() {
-            if(!navigator.geolocation) return;
-            navigator.geolocation.watchPosition(p => {
-                lat = p.coords.latitude; lon = p.coords.longitude; alt = p.coords.altitude;
-                document.getElementById('gps_stat').innerText = "GPS OK";
-                document.getElementById('gps_stat').className = "ok";
-                document.getElementById('gl_disp').innerText = toGL(lat, lon);
-            }, e => {
-                document.getElementById('gps_stat').innerText = "GPS Err";
-            }, {enableHighAccuracy:true, timeout:10000});
+        // GPS取得
+        function getGPS() {
+            if (!navigator.geolocation) { alert("GPS非対応です"); return; }
+            document.querySelector('.btn-gps').innerText = "測位中...";
+            navigator.geolocation.getCurrentPosition(pos => {
+                const lat = pos.coords.latitude.toFixed(5);
+                const lon = pos.coords.longitude.toFixed(5);
+                document.getElementById('my_location').value = `${lat}, ${lon}`;
+                document.querySelector('.btn-gps').innerText = "🛰️ 現在地を取得 (GPS)";
+            }, err => {
+                alert("GPSエラー: " + err.message);
+                document.querySelector('.btn-gps').innerText = "🛰️ 現在地を取得 (GPS)";
+            }, { enableHighAccuracy: true });
         }
 
-        // 環境データ取得 (CORS回避 & P2P地震 & OpenMeteo)
-        async function fetchEnv() {
-            if(!lat) { alert("GPS測位を待ってください"); return; }
-            const d = document.getElementById('env_res');
-            d.innerText = "取得中...";
-            envData = {}; 
-
-            try {
-                // Open-Meteo (天気)
-                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,surface_pressure,weather_code,visibility&elevation=${alt||0}`).then(r=>r.json());
-                const c = res.current;
-                
-                // 計算
-                let N="---", spread="---", dist="---";
-                if(c.temperature_2m!=null) {
-                    const t=c.temperature_2m, h=c.relative_humidity_2m, p=c.surface_pressure;
-                    const e = 6.112 * Math.exp((17.67*t)/(t+243.5)) * (h/100);
-                    N = ((77.6/(t+273.15)) * (p + 4810*e/(t+273.15))).toFixed(1);
-                    if(res.elevation) dist = (4.12 * Math.sqrt(res.elevation)).toFixed(1);
-                }
-
-                // HamQSL (宇宙天気) via AllOrigins
-                let solar = "Solar:---";
-                try {
-                    const xml = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('http://www.hamqsl.com/solarxml.php')}`).then(r=>r.text());
-                    const doc = new DOMParser().parseFromString(xml,"text/xml");
-                    const sfi = doc.querySelector("solarflux")?.textContent;
-                    const k = doc.querySelector("kindex")?.textContent;
-                    const gm = doc.querySelector("geomagfield")?.textContent;
-                    if(sfi) solar = `SFI:${sfi} K:${k} (${gm})`;
-                } catch(e){}
-
-                // P2P地震
-                let eq = "Eq:---";
-                try {
-                    const q = await fetch('https://api.p2pquake.net/v2/history?codes=551&limit=1').then(r=>r.json());
-                    if(q[0]) {
-                        const h = q[0].earthquake.hypocenter;
-                        eq = `Eq:${h.name} M${h.magnitude}`;
-                    }
-                } catch(e){}
-
-                // 表示更新
-                const wTxt = `${codeDesc(c.weather_code)} ${c.temperature_2m}℃ ${c.relative_humidity_2m}% ${c.surface_pressure}hPa`;
-                const pTxt = `N:${N} 視程:${c.visibility/1000}km 見通:${dist}km`;
-                d.innerText = [wTxt, pTxt, solar, eq].join("\n");
-
-                // データ格納
-                envData = {
-                    weather: { main: { temp: c.temperature_2m, humidity: c.relative_humidity_2m, pressure: c.surface_pressure }, physics: { refractivity_n: N, radio_horizon: dist } },
-                    solar: { text: solar },
-                    quake: { text: eq },
-                    grid_locator: toGL(lat, lon)
-                };
-
-            } catch(e) { d.innerText = "Err: "+e.message; }
-        }
-
-        // ログ保存
-        function saveLog() {
+        // ログ追加
+        function addLog() {
             const entry = {
-                start_time: new Date().toISOString().replace('T',' ').substring(0,16),
-                callsign: document.getElementById('call').value,
+                start_time: `${document.getElementById('date').value} ${document.getElementById('time').value}`,
+                callsign: document.getElementById('callsign').value.toUpperCase(),
                 band: document.getElementById('band').value,
-                channel: document.getElementById('ch').value,
-                rs: document.getElementById('rs_m').value + "/" + document.getElementById('rs_h').value,
-                memo: document.getElementById('memo').value,
-                my_latitude: lat, my_longitude: lon,
-                my_location: `Mobile(${lat?.toFixed(4)},${lon?.toFixed(4)})`,
-                environment_data: envData,
-                content: document.getElementById('memo').value // 互換用
+                channel: document.getElementById('channel').value,
+                rs: document.getElementById('rs').value,
+                my_location: document.getElementById('my_location').value,
+                location: document.getElementById('location').value,
+                content: document.getElementById('content').value
             };
-            logs.unshift(entry);
-            localStorage.setItem('rl_mob_logs', JSON.stringify(logs));
-            refList();
-            // 簡易クリア
-            ['call','rs_m','rs_h','memo'].forEach(id=>document.getElementById(id).value='');
-            alert("Saved!");
+
+            if(!entry.callsign) { alert("コールサインは必須です"); return; }
+
+            logs.unshift(entry); // 先頭に追加
+            saveAndRender();
+            
+            // 入力欄クリア（日付・場所は残す）
+            document.getElementById('callsign').value = "";
+            document.getElementById('channel').value = "";
+            document.getElementById('rs').value = "";
+            document.getElementById('location').value = "";
+            document.getElementById('content').value = "";
+            document.getElementById('time').value = new Date().toTimeString().slice(0,5);
+            alert("保存しました");
         }
 
-        // その他ユーティリティ
-        function refList() {
-            document.getElementById('cnt').innerText = logs.length;
-            document.getElementById('hist').innerHTML = logs.map(l => 
-                `<div style="padding:6px; border-bottom:1px solid #333; font-size:0.9rem">
-                    <span style="color:#aaa">${l.start_time.split(' ')[1]}</span> 
-                    <strong style="color:#fff; margin-left:5px">${l.callsign}</strong> 
-                    <span style="color:#03dac6; float:right">${l.band}</span>
-                 </div>`
-            ).join('');
-        }
-        function dlJSON() {
+        // JSON書き出し（ここがPC連携のキモ！）
+        function exportJSON() {
+            if(logs.length === 0) { alert("データがありません"); return; }
+            
+            const jsonStr = JSON.stringify(logs, null, 2);
+            const blob = new Blob([jsonStr], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            
             const a = document.createElement('a');
-            a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(logs,null,2));
-            a.download = `mobile_${new Date().toISOString().slice(0,10)}.json`;
+            a.href = url;
+            const filename = `mobile_log_${new Date().toISOString().slice(0,10)}.json`;
+            a.download = filename;
+            
+            // iOS対応
+            document.body.appendChild(a);
             a.click();
+            document.body.removeChild(a);
         }
-        function wipe() { if(confirm("全消去？")) { logs=[]; localStorage.removeItem('rl_mob_logs'); refList(); } }
-        function toGL(lat,lon) {
-            if(!lat) return "---";
-            lon+=180; lat+=90;
-            const A=65, a=97;
-            const fLo=Math.floor(lon/20), fLa=Math.floor(lat/10);
-            const rLo=lon%20, rLa=lat%10;
-            const sLo=Math.floor(rLo/2), sLa=Math.floor(rLa);
-            const rrLo=rLo%2, rrLa=rLa%1;
-            const ssLo=Math.floor(rrLo*12), ssLa=Math.floor(rrLa*24);
-            return String.fromCharCode(A+fLo)+String.fromCharCode(A+fLa)+sLo+sLa+String.fromCharCode(a+ssLo)+String.fromCharCode(a+ssLa);
+
+        // 描画・保存・削除
+        function saveAndRender() {
+            localStorage.setItem('radio_logs', JSON.stringify(logs));
+            renderLogs();
         }
-        function codeDesc(c) {
-            if(c==0) return "快晴"; if([1,2,3].includes(c)) return "晴曇"; 
-            if([45,48].includes(c)) return "霧"; if([51,53,55,61,63,65].includes(c)) return "雨";
-            return "他";
+
+        function renderLogs() {
+            const list = document.getElementById('logList');
+            list.innerHTML = "";
+            document.getElementById('count').innerText = logs.length;
+            
+            logs.forEach((log, index) => {
+                const li = document.createElement('li');
+                li.className = "log-item";
+                li.innerHTML = `
+                    <div>
+                        <div class="log-info"><b>${log.callsign}</b> (${log.band})</div>
+                        <div class="log-time">${log.start_time}</div>
+                    </div>
+                    <button onclick="deleteLog(${index})" style="width:auto; padding:5px 10px; margin:0; background:#eee; color:#333;">×</button>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        function deleteLog(index) {
+            if(confirm("削除しますか？")) {
+                logs.splice(index, 1);
+                saveAndRender();
+            }
+        }
+
+        function clearLogs() {
+            if(confirm("本当に全てのログを削除しますか？")) {
+                logs = [];
+                saveAndRender();
+            }
         }
     </script>
 </body>
