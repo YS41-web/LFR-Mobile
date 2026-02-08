@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Radio Log Mobile v3.0</title>
+    <title>Radio Log Mobile</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#f2f2f7">
     <style>
         :root {
             --primary: #007bff;
@@ -28,11 +32,9 @@
         
         /* GPSインジケーター付きボタン */
         .btn-start { 
-            background: #6c757d; /* 初期はグレー */
-            color: white; font-size: 18px; margin-bottom: 15px; 
+            background: #6c757d; color: white; font-size: 18px; margin-bottom: 15px; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: background 0.3s;
         }
-        /* GPSロック時の色 */
         .gps-locked { background: #007bff !important; box-shadow: 0 0 15px rgba(0,123,255,0.5); }
         
         button { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
@@ -46,9 +48,11 @@
         .btn-clear { background: transparent; color: #dc3545; font-size: 12px; border: 1px solid #eee; width: auto; margin: 10px auto; padding: 8px 15px;}
         
         .footer-area { margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px; }
-        
-        /* ステータス表示 */
         #status-bar { font-size: 12px; text-align: center; margin-bottom: 5px; color: #666; height: 18px;}
+
+        /* ★追加: ログリストのレイアウト調整 */
+        .log-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .log-item:last-child { border-bottom: none; }
     </style>
 </head>
 <body>
@@ -81,7 +85,7 @@
 
         <div class="row">
             <div class="col"><label>Ch</label><input type="text" id="channel" placeholder="ch" inputmode="decimal"></div>
-            <div class="col"><label>RS</label><input type="text" id="rs" placeholder="5x/5x" inputmode="decimal"></div>
+            <div class="col"><label>RS</label><input type="text" id="rs" placeholder="59" inputmode="numeric" pattern="\d*"></div>
         </div>
 
         <div style="margin-bottom:12px;">
@@ -120,7 +124,7 @@
         <h3 style="margin:10px 0 5px; font-size:15px;">保存済み: <span id="count">0</span>件</h3>
         <button type="button" class="btn-share" onclick="smartShare()">📤 スマート転送</button>
         <button type="button" class="btn-copy" onclick="copyJSON()">📋 テキストコピー</button>
-        <ul id="logList" style="margin-top:10px; border-top:1px solid #eee;"></ul>
+        <ul id="logList" style="margin-top:10px; border-top:1px solid #eee; padding-left:0; list-style:none;"></ul>
         <div style="text-align:center;">
              <button type="button" class="btn-clear" onclick="clearLogs()">データ全削除</button>
         </div>
@@ -136,7 +140,6 @@
             const pref = JSON.parse(localStorage.getItem('radio_pref')) || {};
             if(pref.band) document.getElementById('band').value = pref.band;
             if(pref.my_location) {
-                // 前回値がある場合はGPSロック状態とする
                 document.getElementById('my_location').value = pref.my_location;
                 document.getElementById('loc-disp').innerText = "前回値使用";
                 document.getElementById('startBtn').classList.add('gps-locked');
@@ -162,19 +165,17 @@
             const disp = document.getElementById('loc-disp');
 
             status.innerText = "🛰️ 衛星捕捉中...";
-            btn.classList.remove('gps-locked'); // ロック解除（再取得中）
+            btn.classList.remove('gps-locked');
             
             navigator.geolocation.getCurrentPosition(async pos => {
                 const lat = pos.coords.latitude.toFixed(5);
                 const lon = pos.coords.longitude.toFixed(5);
                 const coordStr = `${lat}, ${lon}`;
                 
-                // ★ここで初めて値をセットする（変な文字は入れない）
                 document.getElementById('my_location').value = coordStr;
                 disp.innerText = coordStr;
                 status.innerText = "✅ 測位完了";
                 
-                // ロック完了エフェクト
                 btn.classList.add('gps-locked');
                 btn.innerText = "📡 交信開始 (Ready)";
 
@@ -200,7 +201,6 @@
             }, err => { 
                 status.innerText = "⚠️ GPSエラー: " + err.message;
                 disp.innerText = "未取得";
-                // エラー時は前回の値を維持するか、空にするか。ここでは安全のためそのまま
             }, { enableHighAccuracy: true, timeout: 10000 });
         }
 
@@ -209,11 +209,9 @@
             const callsign = callInput.value.trim(); 
             if(!callsign) { alert("コールサインを入力してください"); return; }
             
-            // ★安全装置: 座標に変な文字が入っていないかチェック
             let myLoc = document.getElementById('my_location').value;
-            // 数字とカンマ以外が含まれていたら、無効として空にする（PC側での計算エラー回避）
             if (!myLoc.match(/[0-9.]+, [0-9.]+/)) {
-                myLoc = ""; // 無効なデータは空文字にして送る
+                myLoc = "";
             }
 
             const endTimeVal = document.getElementById('end_time').value;
@@ -226,7 +224,7 @@
                 band: document.getElementById('band').value,
                 channel: document.getElementById('channel').value,
                 rs: document.getElementById('rs').value,
-                my_location: myLoc, // 安全化された座標
+                my_location: myLoc,
                 location: document.getElementById('location').value,
                 content: document.getElementById('content').value,
                 weather: document.getElementById('weather').value,
@@ -295,25 +293,36 @@
             const list = document.getElementById('logList');
             list.innerHTML = "";
             document.getElementById('count').innerText = logs.length;
+            
             logs.forEach((log, index) => {
+                // ★追加: 地図リンクの生成（Googleマップのユニバーサルリンクを使用）
+                let mapLink = "";
+                if (log.my_location) {
+                    // APIキー不要でスマホの地図アプリが立ち上がる安全なリンクです
+                    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(log.my_location)}`;
+                    mapLink = `<a href="${mapUrl}" target="_blank" style="font-size:12px; color:#007bff; text-decoration:none; margin-left:8px; display:inline-block; background:#e3f2fd; padding:2px 6px; border-radius:4px;">📍地図</a>`;
+                }
+
                 const li = document.createElement('li');
                 li.className = "log-item";
                 li.innerHTML = `
-                    <div>
-                        <div class="log-main">${log.callsign} <span style="font-size:12px; background:#eee; padding:2px 5px; border-radius:4px;">${log.band}</span></div>
-                        <div class="log-sub">${log.start_time.slice(11,16)}</div>
+                    <div style="flex:1;">
+                        <div class="log-main" style="font-weight:bold;">${log.callsign} <span style="font-size:12px; font-weight:normal; background:#eee; padding:2px 5px; border-radius:4px;">${log.band}</span></div>
+                        <div class="log-sub" style="font-size:12px; color:#666; margin-top:4px;">${log.start_time.slice(11,16)} ${mapLink}</div>
                     </div>
-                    <button onclick="deleteLog(${index})" style="width:auto; padding:5px 10px; background:#f8f9fa; color:#dc3545; border:1px solid #ddd; font-size:12px;">削除</button>
+                    <button onclick="deleteLog(${index})" style="width:auto; height:fit-content; padding:6px 12px; background:#f8f9fa; color:#dc3545; border:1px solid #ddd; font-size:12px;">削除</button>
                 `;
                 list.appendChild(li);
             });
         }
+        
         function deleteLog(i) {
             let logs = JSON.parse(localStorage.getItem('radio_logs')) || [];
             logs.splice(i, 1);
             localStorage.setItem('radio_logs', JSON.stringify(logs));
             renderLogs();
         }
+        
         function clearLogs() {
             if(confirm("全削除しますか？")) {
                 localStorage.removeItem('radio_logs');
