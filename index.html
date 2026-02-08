@@ -3,62 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Radio Log Mobile v2.9</title>
+    <title>Radio Log Mobile v3.0</title>
     <style>
         :root {
             --primary: #007bff;
             --success: #28a745;
+            --warning: #ffc107;
             --bg: #f2f2f7;
             --card-bg: #ffffff;
             --text: #333;
         }
         body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; background: var(--bg); margin: 0; padding: 10px; color: var(--text); -webkit-text-size-adjust: 100%; }
         
-        /* カードスタイル */
         .card { background: var(--card-bg); padding: 16px; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; }
-        
-        /* レイアウト */
         .row { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 12px; }
         .col { flex: 1; }
         label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 13px; color: #666; }
         
-        /* 入力フォーム */
         input, select, textarea { 
             width: 100%; padding: 12px; border: 1px solid #d1d1d6; border-radius: 10px; 
             font-size: 17px; box-sizing: border-box; background: #fff; appearance: none; -webkit-appearance: none;
         }
         input:focus, select:focus, textarea:focus { border-color: var(--primary); outline: none; background: #fff; }
         
-        /* 特大コールサイン入力 */
-        #callsign { font-size: 20px; font-weight: bold; padding: 14px; }
-
-        /* ボタン */
-        button { 
-            width: 100%; padding: 14px; border: none; border-radius: 10px; 
-            font-size: 16px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; 
-            display: flex; align-items: center; justify-content: center;
+        /* GPSインジケーター付きボタン */
+        .btn-start { 
+            background: #6c757d; /* 初期はグレー */
+            color: white; font-size: 18px; margin-bottom: 15px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: background 0.3s;
         }
+        /* GPSロック時の色 */
+        .gps-locked { background: #007bff !important; box-shadow: 0 0 15px rgba(0,123,255,0.5); }
+        
+        button { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         button:active { transform: scale(0.98); opacity: 0.9; }
 
-        .btn-start { background: #007bff; color: white; font-size: 18px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,123,255,0.2); }
-        .btn-end { background: #6c757d; color: white; font-size: 16px; margin-bottom: 15px; }
+        .btn-end { background: #6c757d; color: white; margin-bottom: 15px; }
         .btn-save { background: var(--success); color: white; font-size: 20px; padding: 16px; box-shadow: 0 4px 10px rgba(40,167,69,0.3); }
         .btn-gps { background: #e3f2fd; color: var(--primary); font-size: 14px; padding: 10px; border: 1px solid #b3d7ff;}
-        
-        /* フッターボタン群 */
-        .footer-area { margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px; }
-        
-        /* ★スマート転送ボタン */
-        .btn-share { background: #6610f2; color: white; margin-bottom: 8px; font-size: 16px; }
-        
+        .btn-share { background: #6610f2; color: white; margin-bottom: 8px; }
         .btn-copy { background: #17a2b8; color: white; margin-bottom: 8px; }
         .btn-clear { background: transparent; color: #dc3545; font-size: 12px; border: 1px solid #eee; width: auto; margin: 10px auto; padding: 8px 15px;}
+        
+        .footer-area { margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px; }
+        
+        /* ステータス表示 */
+        #status-bar { font-size: 12px; text-align: center; margin-bottom: 5px; color: #666; height: 18px;}
     </style>
 </head>
 <body>
 
     <div class="card">
-        <button type="button" class="btn-start" onclick="startQSO()">⏱️ 交信開始 (Auto GPS)</button>
+        <div id="status-bar">GPS待機中...</div>
+        <button type="button" class="btn-start" id="startBtn" onclick="startQSO()">📡 交信開始 (GPS取得)</button>
+        
         <div style="display:flex; gap:10px; margin-bottom:15px;">
             <div style="flex:1;">
                 <label>開始時刻</label>
@@ -96,26 +94,18 @@
         </div>
 
         <div class="row">
-             <div class="col">
-                <label>終了時刻</label>
-                <input type="time" id="end_time">
-            </div>
-             <div class="col">
-                <button type="button" class="btn-end" style="margin-top:22px; margin-bottom:0;" onclick="setNow('end_time')">終了 (Now)</button>
-             </div>
+             <div class="col"><label>終了時刻</label><input type="time" id="end_time"></div>
+             <div class="col"><button type="button" class="btn-end" style="margin-top:22px; margin-bottom:0;" onclick="setNow('end_time')">終了 (Now)</button></div>
         </div>
         
         <hr style="border:0; margin:15px 0;">
-        
         <button type="button" class="btn-save" onclick="addLog()">💾 ログを保存</button>
     </div>
 
     <div class="card footer-area">
-        <label>📍 位置情報 & 天気 (自動取得)</label>
+        <label>📍 位置情報 & 天気</label>
         <div class="row">
-            <div class="col">
-                 <button type="button" class="btn-gps" onclick="getGPSAndWeather()">🛰️ 手動更新</button>
-            </div>
+            <div class="col"><button type="button" class="btn-gps" onclick="getGPSAndWeather()">🛰️ 手動更新</button></div>
         </div>
         <div style="font-size:12px; color:#666; background:#f9f9f9; padding:8px; border-radius:6px; margin-bottom:10px;">
             <div>位置: <span id="loc-disp">未取得</span></div>
@@ -128,11 +118,8 @@
         <input type="hidden" id="humid"><input type="hidden" id="press"><input type="hidden" id="wind">
 
         <h3 style="margin:10px 0 5px; font-size:15px;">保存済み: <span id="count">0</span>件</h3>
-        
-        <button type="button" class="btn-share" onclick="smartShare()">📤 スマート転送 (AirDrop/Mail)</button>
-        
-        <button type="button" class="btn-copy" onclick="copyJSON()">📋 テキストコピー (予備)</button>
-        
+        <button type="button" class="btn-share" onclick="smartShare()">📤 スマート転送</button>
+        <button type="button" class="btn-copy" onclick="copyJSON()">📋 テキストコピー</button>
         <ul id="logList" style="margin-top:10px; border-top:1px solid #eee;"></ul>
         <div style="text-align:center;">
              <button type="button" class="btn-clear" onclick="clearLogs()">データ全削除</button>
@@ -149,11 +136,13 @@
             const pref = JSON.parse(localStorage.getItem('radio_pref')) || {};
             if(pref.band) document.getElementById('band').value = pref.band;
             if(pref.my_location) {
+                // 前回値がある場合はGPSロック状態とする
                 document.getElementById('my_location').value = pref.my_location;
                 document.getElementById('loc-disp').innerText = "前回値使用";
+                document.getElementById('startBtn').classList.add('gps-locked');
+                document.getElementById('startBtn').innerText = "📡 交信開始 (Ready)";
             }
             renderLogs();
-            getGPSAndWeather();
         });
 
         function setNow(id) {
@@ -167,18 +156,27 @@
 
         function getGPSAndWeather() {
             if (!navigator.geolocation) return;
+            
+            const status = document.getElementById('status-bar');
+            const btn = document.getElementById('startBtn');
             const disp = document.getElementById('loc-disp');
-            const btn = document.querySelector('.btn-start');
-            const originalText = btn.innerText;
-            if(originalText.includes("交信開始")) btn.innerText = "🛰️ 測位中...";
-            disp.innerText = "測位中...";
 
+            status.innerText = "🛰️ 衛星捕捉中...";
+            btn.classList.remove('gps-locked'); // ロック解除（再取得中）
+            
             navigator.geolocation.getCurrentPosition(async pos => {
                 const lat = pos.coords.latitude.toFixed(5);
                 const lon = pos.coords.longitude.toFixed(5);
-                document.getElementById('my_location').value = `${lat}, ${lon}`;
-                disp.innerText = `${lat}, ${lon}`;
-                if(originalText.includes("交信開始")) btn.innerText = originalText;
+                const coordStr = `${lat}, ${lon}`;
+                
+                // ★ここで初めて値をセットする（変な文字は入れない）
+                document.getElementById('my_location').value = coordStr;
+                disp.innerText = coordStr;
+                status.innerText = "✅ 測位完了";
+                
+                // ロック完了エフェクト
+                btn.classList.add('gps-locked');
+                btn.innerText = "📡 交信開始 (Ready)";
 
                 try {
                     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,weather_code&timezone=Asia%2FTokyo`;
@@ -187,6 +185,7 @@
                         const data = await res.json();
                         const cur = data.current;
                         const wName = weatherCodes[cur.weather_code] || "不明";
+                        
                         document.getElementById('weather-disp').innerText = wName;
                         document.getElementById('temp-disp').innerText = cur.temperature_2m + "℃";
                         document.getElementById('weather').value = wName;
@@ -195,11 +194,14 @@
                         document.getElementById('press').value = cur.surface_pressure;
                         document.getElementById('wind').value = cur.wind_speed_10m;
                     }
-                } catch(e) { document.getElementById('weather-disp').innerText = "(オフライン)"; }
+                } catch(e) { 
+                    document.getElementById('weather-disp').innerText = "(オフライン)"; 
+                }
             }, err => { 
-                disp.innerText = "エラー: " + err.message; 
-                if(originalText.includes("交信開始")) btn.innerText = originalText;
-            }, { enableHighAccuracy: true });
+                status.innerText = "⚠️ GPSエラー: " + err.message;
+                disp.innerText = "未取得";
+                // エラー時は前回の値を維持するか、空にするか。ここでは安全のためそのまま
+            }, { enableHighAccuracy: true, timeout: 10000 });
         }
 
         function addLog() {
@@ -207,6 +209,13 @@
             const callsign = callInput.value.trim(); 
             if(!callsign) { alert("コールサインを入力してください"); return; }
             
+            // ★安全装置: 座標に変な文字が入っていないかチェック
+            let myLoc = document.getElementById('my_location').value;
+            // 数字とカンマ以外が含まれていたら、無効として空にする（PC側での計算エラー回避）
+            if (!myLoc.match(/[0-9.]+, [0-9.]+/)) {
+                myLoc = ""; // 無効なデータは空文字にして送る
+            }
+
             const endTimeVal = document.getElementById('end_time').value;
             const endTimeStr = endTimeVal ? `${document.getElementById('date').value} ${endTimeVal}` : "";
 
@@ -217,7 +226,7 @@
                 band: document.getElementById('band').value,
                 channel: document.getElementById('channel').value,
                 rs: document.getElementById('rs').value,
-                my_location: document.getElementById('my_location').value,
+                my_location: myLoc, // 安全化された座標
                 location: document.getElementById('location').value,
                 content: document.getElementById('content').value,
                 weather: document.getElementById('weather').value,
@@ -257,7 +266,6 @@
             window.scrollTo({top: 0, behavior: 'smooth'});
         }
 
-        // ★新機能: Web Share APIによるスマート転送
         async function smartShare() {
             let logs = JSON.parse(localStorage.getItem('radio_logs')) || [];
             if(logs.length === 0) { alert("データなし"); return; }
@@ -266,22 +274,13 @@
             const fileName = `mobile_${new Date().toISOString().slice(0,10)}.json`;
             const file = new File([jsonStr], fileName, {type: "application/json"});
 
-            // 最新のiOS/Androidならファイル共有が可能
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 try {
-                    await navigator.share({
-                        files: [file],
-                        title: 'Radio Log',
-                        text: '交信ログデータです'
-                    });
-                } catch (err) {
-                    // キャンセル時などは何もしない
-                    console.log("Share cancelled or failed", err);
-                }
+                    await navigator.share({ files: [file], title: 'Radio Log', text: '交信ログデータです' });
+                } catch (err) { console.log("Share cancelled", err); }
             } else {
-                // 非対応ブラウザの場合は旧方式にフォールバック
-                alert("このブラウザはファイル直接共有に対応していません。\nテキストコピーかダウンロードを使用します。");
-                exportJSON();
+                alert("ブラウザが共有に対応していません。コピー機能を使います。");
+                copyJSON();
             }
         }
 
@@ -289,16 +288,6 @@
             let logs = JSON.parse(localStorage.getItem('radio_logs')) || [];
             if(logs.length === 0) { alert("データなし"); return; }
             navigator.clipboard.writeText(JSON.stringify(logs, null, 2)).then(() => alert("コピーしました！"));
-        }
-
-        function exportJSON() {
-            let logs = JSON.parse(localStorage.getItem('radio_logs')) || [];
-            if(logs.length === 0) { alert("データなし"); return; }
-            const blob = new Blob([JSON.stringify(logs, null, 2)], {type: "application/json"});
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `mobile_${new Date().toISOString().slice(0,10)}.json`;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
         }
 
         function renderLogs() {
