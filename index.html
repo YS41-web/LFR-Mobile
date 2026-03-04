@@ -22,10 +22,13 @@
         .btn-export { background-color: #ffc107; color: #333; margin-top: 15px; }
         .btn-clear { background-color: #dc3545; }
         
+        /* ★追加: 入力欄の横にボタンを置くためのスタイル */
+        .input-with-btn { display: flex; gap: 5px; }
+        .btn-now { width: auto; margin-bottom: 0; padding: 0 15px; background-color: #6c757d; font-size: 0.9rem; }
+
         .env-data { background: #e9ecef; padding: 10px; border-radius: 6px; font-size: 0.85rem; color: #444; margin-bottom: 15px; min-height: 40px; border-left: 4px solid #17a2b8; }
         #status { text-align: center; font-weight: bold; color: #d35400; margin-bottom: 10px; font-size: 0.9rem; }
         
-        /* 保存済みログのカードUI */
         #logCount { text-align: center; font-size: 1rem; margin-top: 20px; margin-bottom: 10px; color: #333; font-weight: bold; border-bottom: 2px solid #ccc; padding-bottom: 5px;}
         .log-card { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 10px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .log-card-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 5px; color: #0056b3; }
@@ -51,13 +54,26 @@
     <input type="hidden" id="env_cape"><input type="hidden" id="env_uv">
 
     <div class="form-group"><label>日付</label><input type="date" id="date"></div>
+    
     <div class="row">
-        <div class="form-group"><label>開始時刻</label><input type="time" id="time"></div>
-        <div class="form-group"><label>終了時刻(任意)</label><input type="time" id="end_time"></div>
+        <div class="form-group">
+            <label>開始時刻</label>
+            <div class="input-with-btn">
+                <input type="time" id="time">
+                <button type="button" class="btn-now" onclick="setNowTime('time')">今</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>終了(任意)</label>
+            <div class="input-with-btn">
+                <input type="time" id="end_time">
+                <button type="button" class="btn-now" onclick="setNowTime('end_time')">今</button>
+            </div>
+        </div>
     </div>
     
     <div class="row">
-        <div class="form-group"><label>Callsign</label><input type="text" id="callsign" placeholder="例: カナガワYS41"></div>
+        <div class="form-group"><label>Callsign</label><input type="text" id="callsign" placeholder="例: かながわYS41"></div>
         <div class="form-group"><label>RS</label><input type="text" id="rs" placeholder="55/55"></div>
     </div>
     <div class="row">
@@ -106,10 +122,18 @@
         updateLogList();
     }
 
+    // ★追加: 特定の入力欄に「今」の時刻をセットする機能
+    function setNowTime(targetId) {
+        const now = new Date();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        document.getElementById(targetId).value = `${hh}:${mm}`;
+    }
+
     function setNowAndFetch() {
         const now = new Date();
         document.getElementById('date').value = now.toISOString().split('T')[0];
-        document.getElementById('time').value = now.toTimeString().split(':')[0] + ':' + now.toTimeString().split(':')[1];
+        setNowTime('time');
         document.getElementById('end_time').value = ""; // 終了時間は一旦クリア
         fetchEnvironment();
     }
@@ -247,7 +271,6 @@
         document.getElementById('end_time').value = "";
     }
 
-    // ★復活: リスト表示と修正・削除機能
     function updateLogList() {
         const logs = JSON.parse(localStorage.getItem('radioLogs') || '[]');
         document.getElementById('logCount').innerText = `📦 保存済みログ: ${logs.length}件`;
@@ -287,7 +310,6 @@
         const logs = JSON.parse(localStorage.getItem('radioLogs') || '[]');
         const log = logs[index];
         
-        // フォームに値を戻す
         if (log.start_time) {
             const parts = log.start_time.split(' ');
             document.getElementById('date').value = parts[0];
@@ -307,7 +329,7 @@
         document.getElementById('tag').value = log.memo || "";
         document.getElementById('memo').value = log.content || "";
         
-        // リストから一旦削除して保存させる（二重登録防止）
+        // リストから一旦削除
         logs.splice(index, 1);
         localStorage.setItem('radioLogs', JSON.stringify(logs));
         updateLogList();
