@@ -16,16 +16,24 @@
         button { width: 100%; padding: 12px; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; color: #fff; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
         button:active { transform: translateY(2px); box-shadow: none; }
         
-        /* ボタンの色分け */
-        .btn-start { background-color: #007bff; font-size: 1.2rem; padding: 15px; } /* メイン開始ボタン */
+        .btn-start { background-color: #007bff; font-size: 1.2rem; padding: 15px; }
         .btn-save { background-color: #28a745; }
         .btn-bozu { background-color: #6f42c1; }
-        .btn-export { background-color: #ffc107; color: #333; }
+        .btn-export { background-color: #ffc107; color: #333; margin-top: 15px; }
         .btn-clear { background-color: #dc3545; }
         
         .env-data { background: #e9ecef; padding: 10px; border-radius: 6px; font-size: 0.85rem; color: #444; margin-bottom: 15px; min-height: 40px; border-left: 4px solid #17a2b8; }
         #status { text-align: center; font-weight: bold; color: #d35400; margin-bottom: 10px; font-size: 0.9rem; }
-        #logCount { text-align: center; font-size: 0.9rem; margin-bottom: 10px; color: #666; font-weight: bold; }
+        
+        /* 保存済みログのカードUI */
+        #logCount { text-align: center; font-size: 1rem; margin-top: 20px; margin-bottom: 10px; color: #333; font-weight: bold; border-bottom: 2px solid #ccc; padding-bottom: 5px;}
+        .log-card { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 10px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .log-card-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 5px; color: #0056b3; }
+        .log-card-body { font-size: 0.85rem; color: #555; margin-bottom: 10px; }
+        .log-card-actions { display: flex; gap: 5px; }
+        .log-card-actions button { margin-bottom: 0; padding: 6px; font-size: 0.9rem; box-shadow: none; }
+        .btn-edit { background-color: #17a2b8; }
+        .btn-delete { background-color: #dc3545; }
     </style>
 </head>
 <body>
@@ -42,10 +50,12 @@
     <input type="hidden" id="env_press"><input type="hidden" id="env_wind">
     <input type="hidden" id="env_cape"><input type="hidden" id="env_uv">
 
+    <div class="form-group"><label>日付</label><input type="date" id="date"></div>
     <div class="row">
-        <div class="form-group"><label>日付</label><input type="date" id="date"></div>
         <div class="form-group"><label>開始時刻</label><input type="time" id="time"></div>
+        <div class="form-group"><label>終了時刻(任意)</label><input type="time" id="end_time"></div>
     </div>
+    
     <div class="row">
         <div class="form-group"><label>Callsign</label><input type="text" id="callsign" placeholder="例: カナガワYS41"></div>
         <div class="form-group"><label>RS</label><input type="text" id="rs" placeholder="55/55"></div>
@@ -84,31 +94,26 @@
     
     <button type="button" class="btn-clear" onclick="clearForm()" style="background-color: #6c757d;">🔄 入力クリア</button>
 
-    <hr style="margin-top: 20px; margin-bottom: 20px;">
-    
     <div id="logCount">📦 保存済みログ: 0件</div>
+    <div id="logListContainer"></div>
+
     <button type="button" class="btn-export" onclick="exportJSON()">⬇️ 母艦PC用 JSONエクスポート</button>
     <button type="button" class="btn-clear" onclick="clearAllLogs()" style="margin-top:10px;">🗑️ スマホ内の全ログを削除</button>
 </div>
 
 <script>
-    // 初期化
     function init() {
-        updateLogCount();
+        updateLogList();
     }
 
-    // ★追加: 時刻セットと環境データ取得を同時に行う最強機能
     function setNowAndFetch() {
-        // 1. 時刻を今にセット
         const now = new Date();
         document.getElementById('date').value = now.toISOString().split('T')[0];
         document.getElementById('time').value = now.toTimeString().split(':')[0] + ':' + now.toTimeString().split(':')[1];
-        
-        // 2. 環境データの取得を開始
+        document.getElementById('end_time').value = ""; // 終了時間は一旦クリア
         fetchEnvironment();
     }
 
-    // GPSから位置情報を取得し、Open-Meteoを叩く
     function fetchEnvironment() {
         const status = document.getElementById('status');
         const display = document.getElementById('envDisplay');
@@ -140,7 +145,6 @@
 
                 const current = data.current;
                 const hourly = data.hourly;
-                
                 const nowHour = new Date().getHours();
                 const cape = hourly.cape ? hourly.cape[nowHour] : "";
                 const uv = hourly.uv_index ? hourly.uv_index[nowHour] : "";
@@ -175,49 +179,35 @@
         }, { enableHighAccuracy: true, timeout: 10000 });
     }
 
-    // ★追加: ボウズ専用の記録処理
     function recordBozu() {
-        // バンドが未選択にならないよう確認
         const band = document.getElementById('band').value;
-        if (!band) {
-            alert("Bandを選択してください！");
-            return;
-        }
-
-        // 入力欄をボウズ用に強制上書き
+        if (!band) { alert("Bandを選択してください！"); return; }
         document.getElementById('callsign').value = "CQ (No Contact)";
         document.getElementById('rs').value = "---";
         document.getElementById('memo').value = "伝搬なし/AI解析用ボウズデータ";
-        
-        // そのまま保存処理へ流す
         saveLog(true);
     }
 
-    // ログをローカルストレージに保存
     function saveLog(isBozu = false) {
         const callsign = document.getElementById('callsign').value.trim();
-        if (!callsign) {
-            alert("Callsignを入力してください！");
-            return;
-        }
+        if (!callsign) { alert("Callsignを入力してください！"); return; }
 
         const date = document.getElementById('date').value;
         const time = document.getElementById('time').value;
-        // 日時が空の場合は警告
-        if(!date || !time) {
-            alert("日付と時刻を入力するか、「運用開始」ボタンを押してください。");
-            return;
-        }
+        if(!date || !time) { alert("日付と開始時刻を入力してください。"); return; }
+
+        const endTimeVal = document.getElementById('end_time').value;
+        const endTimeStr = endTimeVal ? `${date} ${endTimeVal}` : "";
 
         const lat = parseFloat(document.getElementById('my_lat').value) || null;
         const lon = parseFloat(document.getElementById('my_lon').value) || null;
-        
         let myLocStr = "Mobile";
         if (lat !== null && lon !== null) myLocStr = `Mobile (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
 
         const logEntry = {
             callsign: callsign,
             start_time: `${date} ${time}`,
+            end_time: endTimeStr,
             band: document.getElementById('band').value,
             channel: document.getElementById('channel').value,
             rs: document.getElementById('rs').value,
@@ -247,23 +237,93 @@
         logs.push(logEntry);
         localStorage.setItem('radioLogs', JSON.stringify(logs));
 
-        updateLogCount();
-        
-        if(isBozu) {
-            document.getElementById('status').innerText = "😢 ボウズ記録を保存しました";
-        } else {
-            document.getElementById('status').innerText = "✅ ログを保存しました";
-        }
+        updateLogList();
+        document.getElementById('status').innerText = isBozu ? "😢 ボウズ記録を保存しました" : "✅ ログを保存しました";
         
         // 連続入力用に一部のフィールドをクリア
         document.getElementById('callsign').value = "";
         document.getElementById('rs').value = "";
         document.getElementById('memo').value = "";
+        document.getElementById('end_time').value = "";
     }
 
-    function updateLogCount() {
+    // ★復活: リスト表示と修正・削除機能
+    function updateLogList() {
         const logs = JSON.parse(localStorage.getItem('radioLogs') || '[]');
         document.getElementById('logCount').innerText = `📦 保存済みログ: ${logs.length}件`;
+        
+        const container = document.getElementById('logListContainer');
+        container.innerHTML = "";
+        
+        // 新しいものが上に来るように逆順で表示
+        [...logs].reverse().forEach((log, reversedIndex) => {
+            const realIndex = logs.length - 1 - reversedIndex;
+            
+            const timeStr = log.start_time.split(' ')[1] || "";
+            const bandStr = log.band;
+            const rsStr = log.rs ? ` RS:${log.rs}` : "";
+            
+            const card = document.createElement('div');
+            card.className = "log-card";
+            card.innerHTML = `
+                <div class="log-card-header">
+                    <span>${timeStr} - ${log.callsign}</span>
+                    <span>${bandStr}</span>
+                </div>
+                <div class="log-card-body">
+                    ${log.location || "場所未記入"}${rsStr}<br>
+                    Tag: ${log.memo || "---"}
+                </div>
+                <div class="log-card-actions">
+                    <button class="btn-edit" onclick="editLog(${realIndex})">✏️ 修正</button>
+                    <button class="btn-delete" onclick="deleteSingleLog(${realIndex})">❌ 削除</button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function editLog(index) {
+        const logs = JSON.parse(localStorage.getItem('radioLogs') || '[]');
+        const log = logs[index];
+        
+        // フォームに値を戻す
+        if (log.start_time) {
+            const parts = log.start_time.split(' ');
+            document.getElementById('date').value = parts[0];
+            document.getElementById('time').value = parts[1];
+        }
+        if (log.end_time) {
+            document.getElementById('end_time').value = log.end_time.split(' ')[1] || "";
+        }
+        
+        document.getElementById('callsign').value = log.callsign || "";
+        document.getElementById('band').value = log.band || "市民ラジオ/CB";
+        document.getElementById('channel').value = log.channel || "";
+        document.getElementById('rs').value = log.rs || "";
+        document.getElementById('location').value = log.location || "";
+        document.getElementById('remote_altitude').value = log.remote_altitude || "";
+        document.getElementById('distance').value = log.lcr_distance || "";
+        document.getElementById('tag').value = log.memo || "";
+        document.getElementById('memo').value = log.content || "";
+        
+        // リストから一旦削除して保存させる（二重登録防止）
+        logs.splice(index, 1);
+        localStorage.setItem('radioLogs', JSON.stringify(logs));
+        updateLogList();
+        
+        document.getElementById('status').innerText = "✏️ 修正モード: 再度保存を押してください";
+        window.scrollTo(0, 0); // 上までスクロール
+    }
+
+    function deleteSingleLog(index) {
+        if(confirm("このログを削除しますか？")) {
+            let logs = JSON.parse(localStorage.getItem('radioLogs') || '[]');
+            logs.splice(index, 1);
+            localStorage.setItem('radioLogs', JSON.stringify(logs));
+            updateLogList();
+            document.getElementById('status').innerText = "🗑️ 1件削除しました";
+        }
     }
 
     function clearForm() {
@@ -275,10 +335,10 @@
         document.getElementById('distance').value = "";
         document.getElementById('tag').value = "";
         document.getElementById('memo').value = "";
+        document.getElementById('end_time').value = "";
         document.getElementById('status').innerText = "入力クリアしました";
     }
 
-    // 母艦PC用 JSONファイルのダウンロード
     function exportJSON() {
         const logs = localStorage.getItem('radioLogs');
         if (!logs || logs === '[]') {
@@ -307,7 +367,7 @@
     function clearAllLogs() {
         if(confirm("スマホ内の保存済みログをすべて削除しますか？\n（PCへエクスポートする前に消すと復元できません！）")) {
             localStorage.removeItem('radioLogs');
-            updateLogCount();
+            updateLogList();
             document.getElementById('status').innerText = "🗑️ 全ログを削除しました";
         }
     }
