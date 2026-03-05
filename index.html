@@ -47,7 +47,7 @@
 <body>
 
 <div class="container">
-    <h2>RADIO LOGBOOK MOBILE</h2>
+    <h2>Radio Logbook Mobile</h2>
     <div id="status">システム待機中</div>
 
     <button type="button" class="btn-start" onclick="setNowAndFetch()">運用開始 (時刻/GPS/気象取得)</button>
@@ -62,17 +62,17 @@
     
     <div class="row">
         <div class="form-group">
-            <label>START TIME</label>
+            <label>開始時刻</label>
             <div class="input-with-btn">
                 <input type="time" id="time">
-                <button type="button" class="btn-now" onclick="setNowTime('time')">現在</button>
+                <button type="button" class="btn-now" onclick="setNowTime('time')">今</button>
             </div>
         </div>
         <div class="form-group">
-            <label>END TIME</label>
+            <label>終了時刻</label>
             <div class="input-with-btn">
                 <input type="time" id="end_time">
-                <button type="button" class="btn-now" onclick="setNowTime('end_time')">現在</button>
+                <button type="button" class="btn-now" onclick="setNowTime('end_time')">今</button>
             </div>
         </div>
     </div>
@@ -105,19 +105,19 @@
         </div>
         <div id="rpt_name_area" class="form-group">
             <label>レピーター名称</label>
-            <input type="text" id="repeater_name" placeholder="例: 磯子RPT">
+            <input type="text" id="repeater_name" placeholder="例: 横浜港南">
         </div>
     </div>
     
-    <div class="form-group"><label>REMOTE LOCATION (運用地)</label><input type="text" id="location" placeholder="相手局の運用場所"></div>
+    <div class="form-group"><label>相手局運用地</label><input type="text" id="location" placeholder="相手局の運用場所"></div>
     
     <div class="row">
         <div class="form-group"><label>標高 (m)</label><input type="number" id="remote_altitude"></div>
         <div class="form-group"><label>距離 (km)</label><input type="number" step="0.1" id="distance"></div>
     </div>
 
-    <div class="form-group"><label>EQUIPMENT (機材タグ)</label><input type="text" id="tag" placeholder="例: ICB-87R"></div>
-    <div class="form-group"><label>REMARKS (備考)</label><textarea id="memo" rows="2" placeholder="交信内容など"></textarea></div>
+    <div class="form-group"><label>Tag</label><input type="text" id="tag" placeholder="例: ICB-87R"></div>
+    <div class="form-group"><label>備考（メモ）</label><textarea id="memo" rows="2" placeholder="交信内容など"></textarea></div>
 
     <div class="row">
         <div style="flex: 2;">
@@ -288,3 +288,4 @@
 </script>
 </body>
 </html>
+
