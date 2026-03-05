@@ -35,7 +35,7 @@
         .env-data { background: #000; padding: 10px; border-radius: 4px; font-size: 0.8rem; color: #00ff41; margin-bottom: 15px; border: 1px solid #222; font-family: "Courier New", monospace; line-height: 1.4; white-space: pre-wrap; }
         #status { text-align: center; font-weight: bold; color: #ff9900; margin-bottom: 10px; font-size: 0.8rem; letter-spacing: 1px; }
         
-        #logCount { text-align: left; font-size: 0.8rem; margin-top: 20px; color: #666; font-weight: bold; padding-left: 5px; }
+        #logCount { font-size: 0.8rem; color: #666; font-weight: bold; margin-bottom: 5px; }
         .log-card { background: #252525; border-left: 3px solid #0099ff; padding: 10px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 10px;}
         .log-card-chk { margin-top: 3px; transform: scale(1.3); }
         .log-card-content { flex: 1; }
@@ -49,6 +49,7 @@
         #rpt_name_area { display: none; margin-top: 10px; }
         
         .section-divider { border-top: 1px dashed #444; margin: 20px 0; }
+        .list-header { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 20px; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 10px;}
     </style>
 </head>
 <body>
@@ -139,13 +140,23 @@
     
     <button type="button" class="btn-clear" onclick="clearForm()">フィールドクリア</button>
 
-    <div id="logCount">保存済み: 0件</div>
+    <div class="list-header">
+        <div id="logCount">保存済み: 0件</div>
+        <button type="button" class="btn-clear" onclick="toggleSelectAll()" style="width:auto; padding: 6px 12px; margin: 0; font-size: 0.75rem;">☑ すべて選択</button>
+    </div>
+    
     <div id="logListContainer"></div>
 
-    <button type="button" class="btn-clear" onclick="deleteSelectedLogs()" style="background-color:#8a2e2e; margin-bottom: 20px;">✓ 選択したログを削除</button>
+    <div class="row" style="margin-top: 15px;">
+        <div style="flex: 1;">
+            <button type="button" class="btn-clear" onclick="deleteSelectedLogs()" style="background-color:#8a2e2e; margin:0; height: 100%;">🗑 選択削除</button>
+        </div>
+        <div style="flex: 2;">
+            <button type="button" class="btn-export" onclick="exportAndShare()" style="margin:0; background-color:#0056b3; border-bottom-color:#003366; height: 100%;">📤 選択ログを転送</button>
+        </div>
+    </div>
 
-    <button type="button" class="btn-export" onclick="exportAndShare()">母艦PCへ転送 (JSON共有)</button>
-    <button type="button" class="btn-clear" onclick="clearAllLogs()" style="margin-top:10px; background-color:#500;">全ログ抹消</button>
+    <button type="button" class="btn-clear" onclick="clearAllLogs()" style="margin-top:20px; background-color:#500;">全ログ抹消</button>
 </div>
 
 <script>
@@ -177,7 +188,7 @@
             input.value = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
             if (btn) {
                 btn.classList.add('active');
-                btn.innerText = "✔ セット済";
+                btn.innerText = "✔";
             }
         }
     }
@@ -190,9 +201,14 @@
         }
     }
 
+    // ★修正: JST対応（ローカルタイム）で日付を取得する処理
     function setNowAndFetch() {
         const n = new Date();
-        document.getElementById('date').value = n.toISOString().split('T')[0];
+        const yyyy = n.getFullYear();
+        const mm = String(n.getMonth() + 1).padStart(2, '0');
+        const dd = String(n.getDate()).padStart(2, '0');
+        document.getElementById('date').value = `${yyyy}-${mm}-${dd}`;
+        
         toggleNowTime('time', true);
         fetchEnv();
     }
@@ -372,6 +388,13 @@
         document.getElementById('btn_cancel_edit').style.display = "none";
     }
 
+    // ★追加: すべて選択機能
+    function toggleSelectAll() {
+        const checkboxes = document.querySelectorAll('.log-chk');
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        checkboxes.forEach(cb => cb.checked = !allChecked);
+    }
+
     function deleteSelectedLogs() {
         const checkboxes = document.querySelectorAll('.log-chk:checked');
         if (checkboxes.length === 0) {
@@ -416,11 +439,32 @@
         });
     }
 
+    // ★修正: 選択されたログのみをJSON書き出し
     async function exportAndShare() {
-        const logs = localStorage.getItem('radioLogs');
-        if (!logs || logs === '[]') return;
-        const blob = new Blob([logs], { type: 'application/json' });
+        const allLogs = JSON.parse(localStorage.getItem('radioLogs') || '[]');
+        if (allLogs.length === 0) {
+            alert("保存されているログがありません。");
+            return;
+        }
+
+        const checkboxes = document.querySelectorAll('.log-chk:checked');
+        let exportLogs = [];
+
+        if (checkboxes.length === 0) {
+            if (confirm("ログが選択されていません。保存されている【すべて】のログを転送しますか？")) {
+                exportLogs = allLogs;
+            } else {
+                return;
+            }
+        } else {
+            // チェックされたログのインデックスを取得し、母艦PCで時系列が狂わないよう昇順(古い順)に並べ替える
+            let indices = Array.from(checkboxes).map(cb => parseInt(cb.value)).sort((a, b) => a - b);
+            exportLogs = indices.map(idx => allLogs[idx]);
+        }
+
+        const blob = new Blob([JSON.stringify(exportLogs, null, 2)], { type: 'application/json' });
         const file = new File([blob], `mobile_log_${Date.now()}.json`, { type: 'application/json' });
+        
         if (navigator.share) {
             try { await navigator.share({ files: [file], title: 'Radio Log Export' }); } catch (e) {}
         } else {
