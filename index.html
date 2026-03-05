@@ -54,7 +54,7 @@
 <body>
 
 <div class="container">
-    <h2>RADIO LOGBOOK MOBILE</h2>
+    <h2>Radio Logbook Mobile β</h2>
     <div id="status">システム待機中</div>
 
     <button type="button" class="btn-start" onclick="setNowAndFetch()">現在地/天候情報の取得更新</button>
@@ -65,14 +65,12 @@
     <input type="hidden" id="env_press"><input type="hidden" id="env_wind">
     <input type="hidden" id="env_cape"><input type="hidden" id="env_uv">
 
-    <div class="row">
-        <div class="form-group"><label>DATE (年月日)</label><input type="date" id="date"></div>
-        <div class="form-group">
-            <label>START TIME (開始)</label>
-            <div class="input-with-btn">
-                <input type="time" id="time" oninput="resetNowBtn('time')">
-                <button type="button" id="btn_now_time" class="btn-now" onclick="toggleNowTime('time')">今</button>
-            </div>
+    <div class="form-group"><label>DATE (年月日)</label><input type="date" id="date"></div>
+    <div class="form-group">
+        <label>START TIME (開始)</label>
+        <div class="input-with-btn">
+            <input type="time" id="time" oninput="resetNowBtn('time')">
+            <button type="button" id="btn_now_time" class="btn-now" onclick="toggleNowTime('time')">今</button>
         </div>
     </div>
     
@@ -151,7 +149,7 @@
 </div>
 
 <script>
-    let editingIndex = -1; // 編集中のログIDを保持
+    let editingIndex = -1; 
 
     function toHalfWidth(el) {
         el.value = el.value.replace(/[！-～]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
@@ -277,13 +275,11 @@
         const logs = JSON.parse(localStorage.getItem('radioLogs') || '[]');
         
         if (editingIndex > -1) {
-            // 上書き保存処理
             logs[editingIndex] = log;
             editingIndex = -1;
             document.getElementById('status').innerText = "上書き保存しました";
             resetEditModeUI();
         } else {
-            // 新規保存処理
             logs.push(log);
             document.getElementById('status').innerText = "記録を保存しました";
         }
@@ -291,7 +287,6 @@
         localStorage.setItem('radioLogs', JSON.stringify(logs));
         updateList();
         
-        // ★改良: 次の交信に向けて一部をクリア（相手運用地もクリア対象に追加）
         document.getElementById('callsign').value = "";
         document.getElementById('rs').value = "";
         document.getElementById('memo').value = "";
@@ -304,7 +299,6 @@
         resetNowBtn('end_time');
     }
 
-    // ★改良: 安全な編集モード機能
     function editLog(index) {
         const logs = JSON.parse(localStorage.getItem('radioLogs') || '[]');
         const log = logs[index];
@@ -336,7 +330,6 @@
         document.getElementById('tag').value = log.memo || "";
         document.getElementById('memo').value = log.content || "";
 
-        // 環境データ（裏側）も復元
         document.getElementById('my_lat').value = log.my_latitude || "";
         document.getElementById('my_lon').value = log.my_longitude || "";
         document.getElementById('my_alt').value = log.my_altitude || "";
@@ -355,7 +348,7 @@
         editingIndex = index;
         const btnSave = document.getElementById('btn_save_main');
         btnSave.innerText = "上書き保存";
-        btnSave.style.backgroundColor = "#0056b3"; // 編集モードは青色
+        btnSave.style.backgroundColor = "#0056b3"; 
         btnSave.style.borderBottomColor = "#003366";
         
         document.getElementById('btn_cancel_edit').style.display = "block";
@@ -368,7 +361,7 @@
         editingIndex = -1;
         resetEditModeUI();
         document.getElementById('status').innerText = "編集をキャンセルしました";
-        clearForm(false); // 入力欄をクリア
+        clearForm(false); 
     }
 
     function resetEditModeUI() {
@@ -379,7 +372,6 @@
         document.getElementById('btn_cancel_edit').style.display = "none";
     }
 
-    // ★改良: 選択削除機能
     function deleteSelectedLogs() {
         const checkboxes = document.querySelectorAll('.log-chk:checked');
         if (checkboxes.length === 0) {
@@ -388,7 +380,6 @@
         }
         if (confirm(`${checkboxes.length}件のログを削除します。よろしいですか？`)) {
             let logs = JSON.parse(localStorage.getItem('radioLogs') || '[]');
-            // インデックスのズレを防ぐため、降順（後ろから）削除する
             let indices = Array.from(checkboxes).map(cb => parseInt(cb.value)).sort((a, b) => b - a);
             indices.forEach(idx => {
                 logs.splice(idx, 1);
