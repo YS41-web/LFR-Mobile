@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Radio Logbook - Mobile Edge</title>
     <style>
-        /* 渋めのダークトーンで統一 */
+        /* 深夜の山頂でも眩しくない、目に優しいダークスキーム */
         body { font-family: "Hiragino Sans", "Meiryo", sans-serif; background-color: #121212; margin: 0; padding: 10px; color: #d0d0d0; }
         .container { max-width: 600px; margin: 0 auto; background: #1e1e1e; padding: 15px; border-radius: 2px; border: 1px solid #333; }
         h2 { text-align: center; color: #0099ff; margin-top: 5px; font-size: 1rem; letter-spacing: 3px; border-bottom: 2px solid #333; padding-bottom: 10px; font-weight: 900; }
@@ -18,7 +18,7 @@
         .row { display: flex; gap: 8px; }
         .row > div { flex: 1; }
         
-        button { width: 100%; padding: 14px; font-size: 0.95rem; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; color: #fff; margin-bottom: 10px; }
+        button { width: 100%; padding: 14px; font-size: 0.95rem; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; color: #fff; margin-bottom: 10px; transition: all 0.2s ease;}
         .btn-start { background-color: #004d99; border-bottom: 3px solid #003366; }
         .btn-save { background-color: #2d5a27; border-bottom: 3px solid #1e3d1a; }
         .btn-bozu { background-color: #4d2d7d; border-bottom: 3px solid #351f56; }
@@ -27,19 +27,21 @@
         button:active { transform: translateY(2px); border-bottom: none; margin-bottom: 13px; }
 
         .input-with-btn { display: flex; gap: 5px; }
-        .btn-now { width: auto; margin-bottom: 0; padding: 0 15px; background-color: #333; font-size: 0.75rem; border: 1px solid #444; }
+        .btn-now { width: auto; margin-bottom: 0; padding: 0 15px; background-color: #333; font-size: 0.75rem; border: 1px solid #444; color: #aaa; }
+        /* ★追加: 時刻がセットされた時のアクティブ状態のデザイン */
+        .btn-now.active { background-color: #0056b3; border-color: #00aaff; color: #fff; font-weight: bold; }
 
-        .env-data { background: #000; padding: 10px; border-radius: 4px; font-size: 0.8rem; color: #00ff41; margin-bottom: 15px; border: 1px solid #222; font-family: "Courier New", monospace; line-height: 1.4; }
+        .env-data { background: #000; padding: 10px; border-radius: 4px; font-size: 0.8rem; color: #00ff41; margin-bottom: 15px; border: 1px solid #222; font-family: "Courier New", monospace; line-height: 1.4; white-space: pre-wrap; }
         #status { text-align: center; font-weight: bold; color: #ff9900; margin-bottom: 10px; font-size: 0.8rem; letter-spacing: 1px; }
         
         #logCount { text-align: left; font-size: 0.8rem; margin-top: 20px; color: #666; font-weight: bold; padding-left: 5px; }
         .log-card { background: #252525; border-left: 3px solid #0099ff; padding: 10px; margin-bottom: 8px; }
         .log-card-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 4px; color: #0099ff; font-size: 0.85rem; }
         .log-card-body { font-size: 0.75rem; color: #bbb; }
+        .log-card-tag { color: #8a6d00; font-weight: bold; }
         .log-card-actions { display: flex; gap: 8px; margin-top: 8px; }
         .log-card-actions button { margin-bottom: 0; padding: 6px; font-size: 0.7rem; background: #333; border: 1px solid #444; }
 
-        /* SLPR（特小）関連 */
         #slpr_area { display: none; background: #2a2a2a; padding: 12px; border: 1px solid #444; border-radius: 4px; margin-bottom: 15px; }
         #rpt_name_area { display: none; margin-top: 10px; }
     </style>
@@ -47,10 +49,10 @@
 <body>
 
 <div class="container">
-    <h2>Radio Logbook Mobile</h2>
+    <h2>RADIO LOGBOOK MOBILE</h2>
     <div id="status">システム待機中</div>
 
-    <button type="button" class="btn-start" onclick="setNowAndFetch()">運用準備 (時刻/GPS/気象取得)</button>
+    <button type="button" class="btn-start" onclick="setNowAndFetch()">現在地/天候情報の取得更新</button>
     <div id="envDisplay" class="env-data">環境データ未取得</div>
 
     <input type="hidden" id="my_lat"><input type="hidden" id="my_lon"><input type="hidden" id="my_alt">
@@ -58,28 +60,28 @@
     <input type="hidden" id="env_press"><input type="hidden" id="env_wind">
     <input type="hidden" id="env_cape"><input type="hidden" id="env_uv">
 
-    <div class="form-group"><label>年月日</label><input type="date" id="date"></div>
+    <div class="form-group"><label>DATE (年月日)</label><input type="date" id="date"></div>
     
     <div class="row">
         <div class="form-group">
-            <label>開始時刻</label>
+            <label>START TIME (開始)</label>
             <div class="input-with-btn">
-                <input type="time" id="time">
-                <button type="button" class="btn-now" onclick="setNowTime('time')">今</button>
+                <input type="time" id="time" oninput="resetNowBtn('time')">
+                <button type="button" id="btn_now_time" class="btn-now" onclick="setNowTime('time')">現在</button>
             </div>
         </div>
         <div class="form-group">
-            <label>終了時刻</label>
+            <label>END TIME (終了)</label>
             <div class="input-with-btn">
-                <input type="time" id="end_time">
-                <button type="button" class="btn-now" onclick="setNowTime('end_time')">今</button>
+                <input type="time" id="end_time" oninput="resetNowBtn('end_time')">
+                <button type="button" id="btn_now_end_time" class="btn-now" onclick="setNowTime('end_time')">現在</button>
             </div>
         </div>
     </div>
     
     <div class="row">
-        <div class="form-group"><label>CALLSIGN</label><input type="text" id="callsign" placeholder="コールサイン" autocapitalize="characters"></div>
-        <div class="form-group"><label>RS</label><input type="text" id="rs" placeholder="59/59"></div>
+        <div class="form-group"><label>CALLSIGN</label><input type="text" id="callsign" placeholder="相手局コール" autocapitalize="characters"></div>
+        <div class="form-group"><label>RS</label><input type="text" id="rs" placeholder="59/59" oninput="toHalfWidth(this)"></div>
     </div>
 
     <div class="row">
@@ -92,7 +94,7 @@
                 <option value="アマチュア無線">アマチュア無線</option>
             </select>
         </div>
-        <div class="form-group"><label>CH</label><input type="text" id="channel" placeholder="3" autocapitalize="characters"></div>
+        <div class="form-group"><label>CH</label><input type="text" id="channel" placeholder="3" autocapitalize="characters" oninput="toHalfWidth(this)"></div>
     </div>
 
     <div id="slpr_area">
@@ -105,39 +107,43 @@
         </div>
         <div id="rpt_name_area" class="form-group">
             <label>レピーター名称</label>
-            <input type="text" id="repeater_name" placeholder="例: 横浜港南">
+            <input type="text" id="repeater_name" placeholder="例: 横浜港南RPT">
         </div>
     </div>
     
-    <div class="form-group"><label>相手局運用地</label><input type="text" id="location" placeholder="相手局の運用場所"></div>
+    <div class="form-group"><label>LOCATION (相手局運用地)</label><input type="text" id="location" placeholder="地名・住所・山岳名など"></div>
     
     <div class="row">
-        <div class="form-group"><label>標高 (m)</label><input type="number" id="remote_altitude"></div>
-        <div class="form-group"><label>距離 (km)</label><input type="number" step="0.1" id="distance"></div>
+        <div class="form-group"><label>標高 (m)</label><input type="number" id="remote_altitude" oninput="toHalfWidth(this)"></div>
+        <div class="form-group"><label>距離 (km)</label><input type="number" step="0.1" id="distance" oninput="toHalfWidth(this)"></div>
     </div>
 
-    <div class="form-group"><label>Tag</label><input type="text" id="tag" placeholder="例: ICB-87R"></div>
-    <div class="form-group"><label>備考（メモ）</label><textarea id="memo" rows="2" placeholder="交信内容など"></textarea></div>
+    <div class="form-group"><label>TAG (使用リグ/アンテナ)</label><input type="text" id="tag" placeholder="例: ICB-87R, 付属ホイップ"></div>
+    <div class="form-group"><label>REMARKS (備考/メモ)</label><textarea id="memo" rows="2" placeholder="交信内容・伝搬状況など"></textarea></div>
 
     <div class="row">
         <div style="flex: 2;">
-            <button type="button" class="btn-save" onclick="saveLog()">記録保存</button>
+            <button type="button" class="btn-save" onclick="saveLog()">交信記録を保存</button>
         </div>
         <div style="flex: 1;">
             <button type="button" class="btn-bozu" onclick="recordBozu()">ボウズ</button>
         </div>
     </div>
     
-    <button type="button" class="btn-clear" onclick="clearForm()">フィールドクリア</button>
+    <button type="button" class="btn-clear" onclick="clearForm()">全項目をクリア</button>
 
     <div id="logCount">保存済み: 0件</div>
     <div id="logListContainer"></div>
 
-    <button type="button" class="btn-export" onclick="exportAndShare()">母艦PCへ転送 (JSON共有)</button>
-    <button type="button" class="btn-clear" onclick="clearAllLogs()" style="margin-top:10px; background-color:#500;">全ログ抹消</button>
+    <button type="button" class="btn-export" onclick="exportAndShare()">母艦PCへJSON転送</button>
+    <button type="button" class="btn-clear" onclick="clearAllLogs()" style="margin-top:10px; background-color:#500;">スマホ内の全ログ抹消</button>
 </div>
 
 <script>
+    function toHalfWidth(el) {
+        el.value = el.value.replace(/[！-～]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+    }
+
     function checkSlpr() {
         const isSlpr = document.getElementById('band').value === "特定小電力無線/SLPR";
         document.getElementById('slpr_area').style.display = isSlpr ? "block" : "none";
@@ -148,15 +154,30 @@
         document.getElementById('rpt_name_area').style.display = isRpt ? "block" : "none";
     }
 
+    // ★追加: 時刻をセットし、ボタンをアクティブにする処理
     function setNowTime(id) {
         const n = new Date();
         document.getElementById(id).value = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
+        const btn = document.getElementById(`btn_now_${id}`);
+        if(btn) {
+            btn.classList.add('active');
+            btn.innerText = "✔ セット済";
+        }
+    }
+
+    // ★追加: 手動で書き換えた場合などにボタンの状態を戻す処理
+    function resetNowBtn(id) {
+        const btn = document.getElementById(`btn_now_${id}`);
+        if(btn) {
+            btn.classList.remove('active');
+            btn.innerText = "現在";
+        }
     }
 
     function setNowAndFetch() {
         const n = new Date();
         document.getElementById('date').value = n.toISOString().split('T')[0];
-        setNowTime('time');
+        setNowTime('time'); // ここで開始時刻も「✔ セット済」になります
         fetchEnv();
     }
 
@@ -188,15 +209,15 @@
                 document.getElementById('env_cape').value = data.hourly.cape[new Date().getHours()];
                 document.getElementById('env_uv').value = uv;
 
-                dp.innerText = `POS: ${lat.toFixed(4)},${lon.toFixed(4)}\nTEMP: ${cur.temperature_2m}℃ / HUM: ${cur.relative_humidity_2m}% / UV: ${uv}`;
-                st.innerText = "記録準備完了";
+                dp.innerText = `現在地: ${lat.toFixed(4)}, ${lon.toFixed(4)}\n気温: ${cur.temperature_2m}℃ / 湿度: ${cur.relative_humidity_2m}% / 風速: ${cur.wind_speed_10m}m/s\nUV: ${uv} / CAPE: ${document.getElementById('env_cape').value}`;
+                st.innerText = "更新完了";
             } catch (e) { st.innerText = "気象取得失敗"; }
         }, (e) => { st.innerText = "GPS失敗"; }, {enableHighAccuracy:true, timeout:8000});
     }
 
     function saveLog() {
         const call = document.getElementById('callsign').value.trim();
-        if (!call) { alert("コールサイン未入力"); return; }
+        if (!call) { alert("コールサインを入力してください。"); return; }
         
         const date = document.getElementById('date').value;
         const lat = parseFloat(document.getElementById('my_lat').value) || null;
@@ -243,7 +264,12 @@
         document.getElementById('callsign').value = "";
         document.getElementById('rs').value = "";
         document.getElementById('memo').value = "";
-        document.getElementById('status').innerText = "記録を保存しました";
+        
+        // ★追加: 記録保存後、時刻が「今の時間ではなくなった」ことを示すためにボタンをリセット
+        resetNowBtn('time');
+        resetNowBtn('end_time');
+        
+        document.getElementById('status').innerText = "記録を完了しました";
     }
 
     function updateList() {
@@ -256,7 +282,7 @@
             div.className = "log-card";
             div.innerHTML = `
                 <div class="log-card-header"><span>${l.start_time.split(' ')[1]} ${l.callsign}</span><span>${l.band.split('/')[1] || l.band}</span></div>
-                <div class="log-card-body">${l.location || "---"} RS:${l.rs || "---"}</div>
+                <div class="log-card-body">${l.location || "---"} RS:${l.rs || "---"} <span class="log-card-tag">${l.memo || ""}</span></div>
             `;
             container.appendChild(div);
         });
@@ -281,12 +307,10 @@
         saveLog();
     }
 
-    function clearForm() { if(confirm("フィールドをリセットしますか？")) location.reload(); }
-    function clearAllLogs() { if(confirm("全ログを削除します。よろしいですか？")) { localStorage.removeItem('radioLogs'); updateList(); } }
+    function clearForm() { if(confirm("入力内容をリセットしますか？")) location.reload(); }
+    function clearAllLogs() { if(confirm("保存されている全ログを削除します。復元はできませんがよろしいですか？")) { localStorage.removeItem('radioLogs'); updateList(); } }
 
     window.onload = updateList;
 </script>
 </body>
 </html>
-
-
