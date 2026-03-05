@@ -5,14 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Radio Logbook - Mobile Edge</title>
     <style>
-        /* 渋めのダークトーンで統一（硬派仕様） */
+        /* 深夜の山頂でも眩しくないダークスキーム */
         body { font-family: "Hiragino Sans", "Meiryo", sans-serif; background-color: #121212; margin: 0; padding: 10px; color: #d0d0d0; }
         .container { max-width: 600px; margin: 0 auto; background: #1e1e1e; padding: 15px; border-radius: 2px; border: 1px solid #333; }
         h2 { text-align: center; color: #0099ff; margin-top: 5px; font-size: 1rem; letter-spacing: 3px; border-bottom: 2px solid #333; padding-bottom: 10px; font-weight: 900; }
         
         .form-group { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.75rem; color: #888; letter-spacing: 1px; }
-        input, select, textarea { width: 100%; padding: 12px; border: 1px solid #333; border-radius: 4px; box-sizing: border-box; font-size: 1rem; background-color: #2a2a2a; color: #fff; }
+        input[type="text"], input[type="number"], input[type="time"], input[type="date"], select, textarea { 
+            width: 100%; padding: 12px; border: 1px solid #333; border-radius: 4px; box-sizing: border-box; font-size: 1rem; background-color: #2a2a2a; color: #fff; 
+        }
         input:focus, select:focus { border-color: #0099ff; outline: none; }
         
         .row { display: flex; gap: 8px; }
@@ -28,14 +30,15 @@
 
         .input-with-btn { display: flex; gap: 5px; }
         .btn-now { width: auto; margin-bottom: 0; padding: 0 15px; background-color: #333; font-size: 0.8rem; border: 1px solid #444; color: #aaa; }
-        /* 時刻セット時のアクティブデザイン */
         .btn-now.active { background-color: #0056b3; border-color: #00aaff; color: #fff; font-weight: bold; }
 
         .env-data { background: #000; padding: 10px; border-radius: 4px; font-size: 0.8rem; color: #00ff41; margin-bottom: 15px; border: 1px solid #222; font-family: "Courier New", monospace; line-height: 1.4; white-space: pre-wrap; }
         #status { text-align: center; font-weight: bold; color: #ff9900; margin-bottom: 10px; font-size: 0.8rem; letter-spacing: 1px; }
         
         #logCount { text-align: left; font-size: 0.8rem; margin-top: 20px; color: #666; font-weight: bold; padding-left: 5px; }
-        .log-card { background: #252525; border-left: 3px solid #0099ff; padding: 10px; margin-bottom: 8px; }
+        .log-card { background: #252525; border-left: 3px solid #0099ff; padding: 10px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 10px;}
+        .log-card-chk { margin-top: 3px; transform: scale(1.3); }
+        .log-card-content { flex: 1; }
         .log-card-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 4px; color: #0099ff; font-size: 0.85rem; }
         .log-card-body { font-size: 0.75rem; color: #bbb; }
         .log-card-tag { color: #8a6d00; font-weight: bold; }
@@ -44,15 +47,17 @@
 
         #slpr_area { display: none; background: #2a2a2a; padding: 12px; border: 1px solid #444; border-radius: 4px; margin-bottom: 15px; }
         #rpt_name_area { display: none; margin-top: 10px; }
+        
+        .section-divider { border-top: 1px dashed #444; margin: 20px 0; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Radio Logbook Mobile</h2>
+    <h2>RADIO LOGBOOK MOBILE</h2>
     <div id="status">システム待機中</div>
 
-    <button type="button" class="btn-start" onclick="setNowAndFetch()">運用準備 (時刻/GPS/気象取得)</button>
+    <button type="button" class="btn-start" onclick="setNowAndFetch()">現在地/天候情報の取得更新</button>
     <div id="envDisplay" class="env-data">環境データ未取得</div>
 
     <input type="hidden" id="my_lat"><input type="hidden" id="my_lon"><input type="hidden" id="my_alt">
@@ -60,27 +65,19 @@
     <input type="hidden" id="env_press"><input type="hidden" id="env_wind">
     <input type="hidden" id="env_cape"><input type="hidden" id="env_uv">
 
-    <div class="form-group"><label>年月日</label><input type="date" id="date"></div>
-    
     <div class="row">
+        <div class="form-group"><label>DATE (年月日)</label><input type="date" id="date"></div>
         <div class="form-group">
-            <label>開始時刻</label>
+            <label>START TIME (開始)</label>
             <div class="input-with-btn">
                 <input type="time" id="time" oninput="resetNowBtn('time')">
                 <button type="button" id="btn_now_time" class="btn-now" onclick="toggleNowTime('time')">今</button>
             </div>
         </div>
-        <div class="form-group">
-            <label>終了時刻</label>
-            <div class="input-with-btn">
-                <input type="time" id="end_time" oninput="resetNowBtn('end_time')">
-                <button type="button" id="btn_now_end_time" class="btn-now" onclick="toggleNowTime('end_time')">今</button>
-            </div>
-        </div>
     </div>
     
     <div class="row">
-        <div class="form-group"><label>CALLSIGN</label><input type="text" id="callsign" placeholder="コールサイン" autocapitalize="characters"></div>
+        <div class="form-group"><label>CALLSIGN</label><input type="text" id="callsign" placeholder="相手局コール" autocapitalize="characters"></div>
         <div class="form-group"><label>RS</label><input type="text" id="rs" placeholder="59/59" oninput="toHalfWidth(this)"></div>
     </div>
 
@@ -111,41 +108,55 @@
         </div>
     </div>
     
-    <div class="form-group"><label>相手局運用地</label><input type="text" id="location" placeholder="相手局の運用場所"></div>
+    <div class="form-group"><label>LOCATION (相手局運用地)</label><input type="text" id="location" placeholder="地名・住所・山岳名など"></div>
     
     <div class="row">
         <div class="form-group"><label>標高 (m)</label><input type="number" id="remote_altitude" oninput="toHalfWidth(this)"></div>
         <div class="form-group"><label>距離 (km)</label><input type="number" step="0.1" id="distance" oninput="toHalfWidth(this)"></div>
     </div>
 
-    <div class="form-group"><label>Tag</label><input type="text" id="tag" placeholder="例: ICB-87R"></div>
-    <div class="form-group"><label>備考（メモ）</label><textarea id="memo" rows="2" placeholder="交信内容など"></textarea></div>
+    <div class="form-group"><label>TAG (使用リグ/アンテナ)</label><input type="text" id="tag" placeholder="例: ICB-87R"></div>
+    <div class="form-group"><label>REMARKS (備考/メモ)</label><textarea id="memo" rows="2" placeholder="交信内容など"></textarea></div>
+
+    <div class="section-divider"></div>
+
+    <div class="form-group">
+        <label>END TIME (終了時刻)</label>
+        <div class="input-with-btn">
+            <input type="time" id="end_time" oninput="resetNowBtn('end_time')">
+            <button type="button" id="btn_now_end_time" class="btn-now" onclick="toggleNowTime('end_time')">今</button>
+        </div>
+    </div>
 
     <div class="row">
         <div style="flex: 2;">
-            <button type="button" class="btn-save" onclick="saveLog()">記録保存</button>
+            <button type="button" id="btn_save_main" class="btn-save" onclick="saveLog()">記録保存</button>
         </div>
         <div style="flex: 1;">
             <button type="button" class="btn-bozu" onclick="recordBozu()">ボウズ</button>
         </div>
     </div>
     
+    <button type="button" id="btn_cancel_edit" class="btn-clear" onclick="cancelEdit()" style="display:none; background-color:#666;">編集をキャンセル</button>
+    
     <button type="button" class="btn-clear" onclick="clearForm()">フィールドクリア</button>
 
     <div id="logCount">保存済み: 0件</div>
     <div id="logListContainer"></div>
+
+    <button type="button" class="btn-clear" onclick="deleteSelectedLogs()" style="background-color:#8a2e2e; margin-bottom: 20px;">✓ 選択したログを削除</button>
 
     <button type="button" class="btn-export" onclick="exportAndShare()">母艦PCへ転送 (JSON共有)</button>
     <button type="button" class="btn-clear" onclick="clearAllLogs()" style="margin-top:10px; background-color:#500;">全ログ抹消</button>
 </div>
 
 <script>
-    // 全角英数字を半角に変換（解析しやすくするため）
+    let editingIndex = -1; // 編集中のログIDを保持
+
     function toHalfWidth(el) {
         el.value = el.value.replace(/[！-～]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
     }
 
-    // 特小関連の表示切り替え
     function checkSlpr() {
         const isSlpr = document.getElementById('band').value === "特定小電力無線/SLPR";
         document.getElementById('slpr_area').style.display = isSlpr ? "block" : "none";
@@ -155,28 +166,24 @@
         document.getElementById('rpt_name_area').style.display = isRpt ? "block" : "none";
     }
 
-    // ★改良: 「今」ボタンのトグル（ON/OFF）処理
     function toggleNowTime(id, forceSet = false) {
         const btn = document.getElementById(`btn_now_${id}`);
         const input = document.getElementById(id);
         
-        // すでにセット済みで、かつ強制セット(forceSet)ではない場合は「解除」する
         if (!forceSet && btn && btn.classList.contains('active')) {
             input.value = "";
             btn.classList.remove('active');
             btn.innerText = "今";
         } else {
-            // セットする処理
             const n = new Date();
             input.value = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
             if (btn) {
                 btn.classList.add('active');
-                btn.innerText = "✔";
+                btn.innerText = "✔ セット済";
             }
         }
     }
 
-    // 手動で入力欄を書き換えた場合、ボタンの状態をリセットする
     function resetNowBtn(id) {
         const btn = document.getElementById(`btn_now_${id}`);
         if(btn) {
@@ -188,7 +195,6 @@
     function setNowAndFetch() {
         const n = new Date();
         document.getElementById('date').value = n.toISOString().split('T')[0];
-        // 運用準備ボタンを押した時は、強制的に開始時刻を上書きセットする
         toggleNowTime('time', true);
         fetchEnv();
     }
@@ -269,19 +275,128 @@
         };
 
         const logs = JSON.parse(localStorage.getItem('radioLogs') || '[]');
-        logs.push(log);
+        
+        if (editingIndex > -1) {
+            // 上書き保存処理
+            logs[editingIndex] = log;
+            editingIndex = -1;
+            document.getElementById('status').innerText = "上書き保存しました";
+            resetEditModeUI();
+        } else {
+            // 新規保存処理
+            logs.push(log);
+            document.getElementById('status').innerText = "記録を保存しました";
+        }
+        
         localStorage.setItem('radioLogs', JSON.stringify(logs));
         updateList();
         
+        // ★改良: 次の交信に向けて一部をクリア（相手運用地もクリア対象に追加）
         document.getElementById('callsign').value = "";
         document.getElementById('rs').value = "";
         document.getElementById('memo').value = "";
+        document.getElementById('location').value = "";
+        document.getElementById('remote_altitude').value = "";
+        document.getElementById('distance').value = "";
+        document.getElementById('end_time').value = "";
         
-        // 記録保存後、時刻ボタンをリセットする
         resetNowBtn('time');
         resetNowBtn('end_time');
+    }
+
+    // ★改良: 安全な編集モード機能
+    function editLog(index) {
+        const logs = JSON.parse(localStorage.getItem('radioLogs') || '[]');
+        const log = logs[index];
+
+        document.getElementById('date').value = log.start_time.split(' ')[0] || "";
+        document.getElementById('time').value = log.start_time.split(' ')[1] || "";
+        document.getElementById('end_time').value = log.end_time ? log.end_time.split(' ')[1] : "";
+
+        document.getElementById('callsign').value = log.callsign || "";
+        document.getElementById('rs').value = log.rs || "";
+        document.getElementById('band').value = log.band || "市民ラジオ/CB";
+        checkSlpr();
+
+        if (log.band === "特定小電力無線/SLPR") {
+            if (log.slpr_mode && log.slpr_mode.includes("レピーター")) {
+                document.getElementById('slpr_mode').value = "レピーター";
+                const match = log.slpr_mode.match(/レピーター\((.*?)\)/);
+                if(match) document.getElementById('repeater_name').value = match[1];
+            } else {
+                document.getElementById('slpr_mode').value = "シンプレックス";
+            }
+            checkRpt();
+        }
+
+        document.getElementById('channel').value = log.channel || "";
+        document.getElementById('location').value = log.location || "";
+        document.getElementById('remote_altitude').value = log.remote_altitude || "";
+        document.getElementById('distance').value = log.lcr_distance || "";
+        document.getElementById('tag').value = log.memo || "";
+        document.getElementById('memo').value = log.content || "";
+
+        // 環境データ（裏側）も復元
+        document.getElementById('my_lat').value = log.my_latitude || "";
+        document.getElementById('my_lon').value = log.my_longitude || "";
+        document.getElementById('my_alt').value = log.my_altitude || "";
+        document.getElementById('env_weather').value = log.weather || "";
+        document.getElementById('env_temp').value = log.temperature || "";
+        document.getElementById('env_hum').value = log.humidity || "";
+        document.getElementById('env_press').value = log.pressure || "";
+        document.getElementById('env_wind').value = log.wind_speed || "";
+        if(log.environment_data) {
+            document.getElementById('env_cape').value = log.environment_data.cape || "";
+            document.getElementById('env_uv').value = log.environment_data.uv || "";
+        }
+
+        document.getElementById('envDisplay').innerText = `[過去データ読込済] 気温: ${log.temperature}℃ / 湿度: ${log.humidity}%`;
+
+        editingIndex = index;
+        const btnSave = document.getElementById('btn_save_main');
+        btnSave.innerText = "上書き保存";
+        btnSave.style.backgroundColor = "#0056b3"; // 編集モードは青色
+        btnSave.style.borderBottomColor = "#003366";
         
-        document.getElementById('status').innerText = "記録を保存しました";
+        document.getElementById('btn_cancel_edit').style.display = "block";
+        
+        window.scrollTo(0, 0);
+        document.getElementById('status').innerText = `ID:${index} を編集中...`;
+    }
+
+    function cancelEdit() {
+        editingIndex = -1;
+        resetEditModeUI();
+        document.getElementById('status').innerText = "編集をキャンセルしました";
+        clearForm(false); // 入力欄をクリア
+    }
+
+    function resetEditModeUI() {
+        const btnSave = document.getElementById('btn_save_main');
+        btnSave.innerText = "記録保存";
+        btnSave.style.backgroundColor = "#2d5a27";
+        btnSave.style.borderBottomColor = "#1e3d1a";
+        document.getElementById('btn_cancel_edit').style.display = "none";
+    }
+
+    // ★改良: 選択削除機能
+    function deleteSelectedLogs() {
+        const checkboxes = document.querySelectorAll('.log-chk:checked');
+        if (checkboxes.length === 0) {
+            alert("削除するログにチェックを入れてください。");
+            return;
+        }
+        if (confirm(`${checkboxes.length}件のログを削除します。よろしいですか？`)) {
+            let logs = JSON.parse(localStorage.getItem('radioLogs') || '[]');
+            // インデックスのズレを防ぐため、降順（後ろから）削除する
+            let indices = Array.from(checkboxes).map(cb => parseInt(cb.value)).sort((a, b) => b - a);
+            indices.forEach(idx => {
+                logs.splice(idx, 1);
+            });
+            localStorage.setItem('radioLogs', JSON.stringify(logs));
+            updateList();
+            document.getElementById('status').innerText = `${checkboxes.length}件のログを削除しました`;
+        }
     }
 
     function updateList() {
@@ -290,11 +405,21 @@
         const container = document.getElementById('logListContainer');
         container.innerHTML = "";
         [...logs].reverse().forEach((l, i) => {
+            const realIndex = logs.length - 1 - i;
             const div = document.createElement('div');
             div.className = "log-card";
             div.innerHTML = `
-                <div class="log-card-header"><span>${l.start_time.split(' ')[1]} ${l.callsign}</span><span>${l.band.split('/')[1] || l.band}</span></div>
-                <div class="log-card-body">${l.location || "---"} RS:${l.rs || "---"} <span class="log-card-tag">${l.memo || ""}</span></div>
+                <input type="checkbox" class="log-chk" value="${realIndex}">
+                <div class="log-card-content">
+                    <div class="log-card-header">
+                        <span>${l.start_time.split(' ')[1]} ${l.callsign}</span>
+                        <span>${l.band.split('/')[1] || l.band}</span>
+                    </div>
+                    <div class="log-card-body">${l.location || "---"} RS:${l.rs || "---"} <span class="log-card-tag">${l.memo || ""}</span></div>
+                    <div class="log-card-actions">
+                        <button onclick="editLog(${realIndex})">✏️ 編集</button>
+                    </div>
+                </div>
             `;
             container.appendChild(div);
         });
@@ -319,11 +444,18 @@
         saveLog();
     }
 
-    function clearForm() { if(confirm("入力内容をリセットしますか？")) location.reload(); }
-    function clearAllLogs() { if(confirm("保存されている全ログを削除します。復元はできませんがよろしいですか？")) { localStorage.removeItem('radioLogs'); updateList(); } }
+    function clearForm(confirmCheck = true) { 
+        if(!confirmCheck || confirm("入力内容をリセットしますか？")) location.reload(); 
+    }
+    
+    function clearAllLogs() { 
+        if(confirm("【警告】保存されている全ログを抹消します。本当によろしいですか？")) { 
+            localStorage.removeItem('radioLogs'); 
+            updateList(); 
+        } 
+    }
 
     window.onload = updateList;
 </script>
 </body>
 </html>
-
