@@ -12,10 +12,14 @@
         
         .form-group { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.75rem; color: #888; letter-spacing: 1px; }
+        
+        /* ★高さのズレを解消するため height: 48px に完全固定し、デフォルトスタイルをリセット */
         input[type="text"], input[type="number"], input[type="time"], input[type="date"], select, textarea { 
-            width: 100%; padding: 12px; border: 1px solid #333; border-radius: 4px; box-sizing: border-box; font-size: 1rem; background-color: #2a2a2a; color: #fff; 
+            width: 100%; height: 48px; padding: 0 12px; border: 1px solid #333; border-radius: 4px; box-sizing: border-box; 
+            font-size: 1rem; background-color: #2a2a2a; color: #fff; -webkit-appearance: none; 
         }
-        input:focus, select:focus { border-color: #0099ff; outline: none; }
+        textarea { height: auto; padding: 12px; }
+        input:focus, select:focus, textarea:focus { border-color: #0099ff; outline: none; }
         
         .row { display: flex; gap: 8px; }
         .row > div { flex: 1; }
@@ -32,6 +36,19 @@
         .btn-now { width: auto; margin-bottom: 0; padding: 0 15px; background-color: #333; font-size: 0.8rem; border: 1px solid #444; color: #aaa; }
         .btn-now.active { background-color: #0056b3; border-color: #00aaff; color: #fff; font-weight: bold; }
 
+        /* ★横スクロールするチップ型UI（BAND/特小モード用） */
+        .chip-container {
+            display: flex; overflow-x: auto; gap: 8px; height: 48px; align-items: center;
+            -webkit-overflow-scrolling: touch; scrollbar-width: none; /* スクロールバー非表示 */
+        }
+        .chip-container::-webkit-scrollbar { display: none; }
+        .chip {
+            flex: 0 0 auto; padding: 0 16px; height: 38px; line-height: 38px;
+            background-color: #2a2a2a; border: 1px solid #444; border-radius: 20px;
+            font-size: 0.85rem; color: #888; font-weight: bold; transition: all 0.2s ease; cursor: pointer;
+        }
+        .chip.active { background-color: #0056b3; border-color: #00aaff; color: #fff; }
+
         .env-data { background: #000; padding: 10px; border-radius: 4px; font-size: 0.8rem; color: #00ff41; margin-bottom: 15px; border: 1px solid #222; font-family: "Courier New", monospace; line-height: 1.4; white-space: pre-wrap; }
         #status { text-align: center; font-weight: bold; color: #ff9900; margin-bottom: 10px; font-size: 0.8rem; letter-spacing: 1px; }
         
@@ -45,9 +62,8 @@
         .log-card-actions { display: flex; gap: 8px; margin-top: 8px; }
         .log-card-actions button { margin-bottom: 0; padding: 6px; font-size: 0.7rem; background: #333; border: 1px solid #444; }
 
-        #slpr_area { display: none; background: #2a2a2a; padding: 12px; border: 1px solid #444; border-radius: 4px; margin-bottom: 15px; }
+        #slpr_area { display: none; background: #222; padding: 12px; border: 1px solid #333; border-radius: 4px; margin-bottom: 15px; }
         #rpt_name_area { display: none; margin-top: 10px; }
-        
         .section-divider { border-top: 1px dashed #444; margin: 20px 0; }
         .list-header { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 20px; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 10px;}
     </style>
@@ -55,7 +71,7 @@
 <body>
 
 <div class="container">
-    <h2>RADIO LOGBOOK MOBILE</h2>
+    <h2>Radio Logbook Mobile β</h2>
     <div id="status">システム待機中</div>
 
     <button type="button" class="btn-start" onclick="setNowAndFetch()">現在地/天候情報の取得更新</button>
@@ -81,25 +97,30 @@
     </div>
 
     <div class="row">
-        <div class="form-group"><label>BAND</label>
-            <select id="band" onchange="checkSlpr()">
-                <option value="市民ラジオ/CB">市民ラジオ/CB</option>
-                <option value="デジタル簡易無線/DCR">デジタル簡易無線/DCR</option>
-                <option value="特定小電力無線/SLPR">特定小電力無線/SLPR</option>
-                <option value="デジタル小電力コミュニティ無線/LCR">デジタル小電力コミュニティ/LCR</option>
-                <option value="アマチュア無線">アマチュア無線</option>
-            </select>
+        <div class="form-group" style="flex: 3; min-width: 0;">
+            <label>BAND (スワイプで選択)</label>
+            <div class="chip-container" id="band_chips">
+                <div class="chip active" data-value="市民ラジオ/CB" onclick="setBand('市民ラジオ/CB', this)">CB</div>
+                <div class="chip" data-value="デジタル簡易無線/DCR" onclick="setBand('デジタル簡易無線/DCR', this)">DCR</div>
+                <div class="chip" data-value="特定小電力無線/SLPR" onclick="setBand('特定小電力無線/SLPR', this)">特小</div>
+                <div class="chip" data-value="デジタル小電力コミュニティ無線/LCR" onclick="setBand('デジタル小電力コミュニティ無線/LCR', this)">LCR</div>
+            </div>
+            <input type="hidden" id="band" value="市民ラジオ/CB">
         </div>
-        <div class="form-group"><label>CH</label><input type="text" id="channel" placeholder="3" autocapitalize="characters" oninput="toHalfWidth(this)"></div>
+        <div class="form-group" style="flex: 1; min-width: 60px;">
+            <label>CH</label>
+            <input type="text" id="channel" placeholder="3" autocapitalize="characters" oninput="toHalfWidth(this)">
+        </div>
     </div>
 
     <div id="slpr_area">
         <div class="form-group">
             <label>特小モード</label>
-            <select id="slpr_mode" onchange="checkRpt()">
-                <option value="シンプレックス">シンプレックス</option>
-                <option value="レピーター">レピーター</option>
-            </select>
+            <div class="chip-container" id="mode_chips">
+                <div class="chip active" data-value="シンプレックス" onclick="setSlprMode('シンプレックス', this)">単信 (シンプレックス)</div>
+                <div class="chip" data-value="レピーター" onclick="setSlprMode('レピーター', this)">レピーター (半複信)</div>
+            </div>
+            <input type="hidden" id="slpr_mode" value="シンプレックス">
         </div>
         <div id="rpt_name_area" class="form-group">
             <label>レピーター名称</label>
@@ -114,7 +135,7 @@
         <div class="form-group"><label>距離 (km)</label><input type="number" step="0.1" id="distance" oninput="toHalfWidth(this)"></div>
     </div>
 
-    <div class="form-group"><label>TAG (使用リグ/アンテナ)</label><input type="text" id="tag" placeholder="例: ICB-87R"></div>
+    <div class="form-group"><label>TAG (使用リグ/アンテナ)</label><input type="text" id="tag" placeholder="例: RJ-60"></div>
     <div class="form-group"><label>REMARKS (備考/メモ)</label><textarea id="memo" rows="2" placeholder="交信内容など"></textarea></div>
 
     <div class="section-divider"></div>
@@ -137,12 +158,11 @@
     </div>
     
     <button type="button" id="btn_cancel_edit" class="btn-clear" onclick="cancelEdit()" style="display:none; background-color:#666;">編集をキャンセル</button>
-    
     <button type="button" class="btn-clear" onclick="clearForm()">フィールドクリア</button>
 
     <div class="list-header">
         <div id="logCount">保存済み: 0件</div>
-        <button type="button" class="btn-clear" onclick="toggleSelectAll()" style="width:auto; padding: 6px 12px; margin: 0; font-size: 0.75rem;">☑ すべて選択</button>
+        <button type="button" class="btn-clear" onclick="toggleSelectAll()" style="width:auto; padding: 6px 12px; margin: 0; font-size: 0.75rem;">すべて選択</button>
     </div>
     
     <div id="logListContainer"></div>
@@ -152,7 +172,7 @@
             <button type="button" class="btn-clear" onclick="deleteSelectedLogs()" style="background-color:#8a2e2e; margin:0; height: 100%;">🗑 選択削除</button>
         </div>
         <div style="flex: 2;">
-            <button type="button" class="btn-export" onclick="exportAndShare()" style="margin:0; background-color:#0056b3; border-bottom-color:#003366; height: 100%;">📤 選択ログを転送</button>
+            <button type="button" class="btn-export" onclick="exportAndShare()" style="margin:0; background-color:#0056b3; border-bottom-color:#003366; height: 100%;">選択ログを転送</button>
         </div>
     </div>
 
@@ -166,10 +186,43 @@
         el.value = el.value.replace(/[！-～]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
     }
 
+    // ★チップUI制御関数
+    function setBand(val, el) {
+        document.getElementById('band').value = val;
+        const chips = el.parentElement.querySelectorAll('.chip');
+        chips.forEach(c => c.classList.remove('active'));
+        el.classList.add('active');
+        el.scrollIntoView({behavior: "smooth", block: "nearest", inline: "center"});
+        checkSlpr();
+    }
+
+    function setSlprMode(val, el) {
+        document.getElementById('slpr_mode').value = val;
+        const chips = el.parentElement.querySelectorAll('.chip');
+        chips.forEach(c => c.classList.remove('active'));
+        el.classList.add('active');
+        checkRpt();
+    }
+
+    function updateChips(containerId, value) {
+        const container = document.getElementById(containerId);
+        if(!container) return;
+        const chips = container.querySelectorAll('.chip');
+        chips.forEach(c => {
+            if(c.getAttribute('data-value') === value) {
+                c.classList.add('active');
+                c.scrollIntoView({behavior: "smooth", block: "nearest", inline: "center"});
+            } else {
+                c.classList.remove('active');
+            }
+        });
+    }
+
     function checkSlpr() {
         const isSlpr = document.getElementById('band').value === "特定小電力無線/SLPR";
         document.getElementById('slpr_area').style.display = isSlpr ? "block" : "none";
     }
+    
     function checkRpt() {
         const isRpt = document.getElementById('slpr_mode').value === "レピーター";
         document.getElementById('rpt_name_area').style.display = isRpt ? "block" : "none";
@@ -188,7 +241,7 @@
             input.value = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
             if (btn) {
                 btn.classList.add('active');
-                btn.innerText = "✔ セット済";
+                btn.innerText = "✔";
             }
         }
     }
@@ -232,7 +285,6 @@
                 const cur = data.current;
                 const uv = data.hourly.uv_index[new Date().getHours()];
                 
-                // ★修正: WMO気象コード(数字)を日本語の天気に変換
                 let wText = "不明";
                 const code = cur.weather_code;
                 if (code === 0) wText = "快晴";
@@ -334,17 +386,22 @@
 
         document.getElementById('callsign').value = log.callsign || "";
         document.getElementById('rs').value = log.rs || "";
-        document.getElementById('band').value = log.band || "市民ラジオ/CB";
+        
+        // ★BANDとモードをチップUIに復元
+        const bandVal = log.band || "市民ラジオ/CB";
+        document.getElementById('band').value = bandVal;
+        updateChips('band_chips', bandVal);
         checkSlpr();
 
-        if (log.band === "特定小電力無線/SLPR") {
+        if (bandVal === "特定小電力無線/SLPR") {
+            let modeVal = "シンプレックス";
             if (log.slpr_mode && log.slpr_mode.includes("レピーター")) {
-                document.getElementById('slpr_mode').value = "レピーター";
+                modeVal = "レピーター";
                 const match = log.slpr_mode.match(/レピーター\((.*?)\)/);
                 if(match) document.getElementById('repeater_name').value = match[1];
-            } else {
-                document.getElementById('slpr_mode').value = "シンプレックス";
             }
+            document.getElementById('slpr_mode').value = modeVal;
+            updateChips('mode_chips', modeVal);
             checkRpt();
         }
 
