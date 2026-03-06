@@ -87,7 +87,6 @@
                 <option value="デジタル簡易無線/DCR">デジタル簡易無線/DCR</option>
                 <option value="特定小電力無線/SLPR">特定小電力無線/SLPR</option>
                 <option value="デジタル小電力コミュニティ無線/LCR">デジタル小電力コミュニティ/LCR</option>
-                <option value="アマチュア無線">アマチュア無線</option>
             </select>
         </div>
         <div class="form-group"><label>CH</label><input type="text" id="channel" placeholder="3" autocapitalize="characters" oninput="toHalfWidth(this)"></div>
@@ -142,17 +141,17 @@
 
     <div class="list-header">
         <div id="logCount">保存済み: 0件</div>
-        <button type="button" class="btn-clear" onclick="toggleSelectAll()" style="width:auto; padding: 6px 12px; margin: 0; font-size: 0.75rem;">☑ すべて選択</button>
+        <button type="button" class="btn-clear" onclick="toggleSelectAll()" style="width:auto; padding: 6px 12px; margin: 0; font-size: 0.75rem;">すべて選択</button>
     </div>
     
     <div id="logListContainer"></div>
 
     <div class="row" style="margin-top: 15px;">
         <div style="flex: 1;">
-            <button type="button" class="btn-clear" onclick="deleteSelectedLogs()" style="background-color:#8a2e2e; margin:0; height: 100%;">🗑 選択削除</button>
+            <button type="button" class="btn-clear" onclick="deleteSelectedLogs()" style="background-color:#8a2e2e; margin:0; height: 100%;">選択削除</button>
         </div>
         <div style="flex: 2;">
-            <button type="button" class="btn-export" onclick="exportAndShare()" style="margin:0; background-color:#0056b3; border-bottom-color:#003366; height: 100%;">📤 選択ログを転送</button>
+            <button type="button" class="btn-export" onclick="exportAndShare()" style="margin:0; background-color:#0056b3; border-bottom-color:#003366; height: 100%;">選択ログを転送</button>
         </div>
     </div>
 
@@ -201,7 +200,6 @@
         }
     }
 
-    // ★修正: JST対応（ローカルタイム）で日付を取得する処理
     function setNowAndFetch() {
         const n = new Date();
         const yyyy = n.getFullYear();
@@ -233,7 +231,17 @@
                 const cur = data.current;
                 const uv = data.hourly.uv_index[new Date().getHours()];
                 
-                document.getElementById('env_weather').value = cur.weather_code;
+                // ★修正: WMO気象コード(数字)を日本語の天気に変換
+                let wText = "不明";
+                const code = cur.weather_code;
+                if (code === 0) wText = "快晴";
+                else if (code <= 3) wText = "晴れ/曇り";
+                else if (code <= 49) wText = "霧";
+                else if (code <= 69) wText = "雨";
+                else if (code <= 79) wText = "雪";
+                else wText = "雷雨";
+                
+                document.getElementById('env_weather').value = wText;
                 document.getElementById('env_temp').value = cur.temperature_2m;
                 document.getElementById('env_hum').value = cur.relative_humidity_2m;
                 document.getElementById('env_press').value = cur.surface_pressure;
@@ -241,7 +249,7 @@
                 document.getElementById('env_cape').value = data.hourly.cape[new Date().getHours()];
                 document.getElementById('env_uv').value = uv;
 
-                dp.innerText = `現在地: ${lat.toFixed(4)}, ${lon.toFixed(4)}\n気温: ${cur.temperature_2m}℃ / 湿度: ${cur.relative_humidity_2m}% / 風速: ${cur.wind_speed_10m}m/s\nUV: ${uv} / CAPE: ${document.getElementById('env_cape').value}`;
+                dp.innerText = `現在地: ${lat.toFixed(4)}, ${lon.toFixed(4)}\n天気: ${wText} / 気温: ${cur.temperature_2m}℃ / 湿度: ${cur.relative_humidity_2m}%\n風速: ${cur.wind_speed_10m}m/s / UV: ${uv}`;
                 st.innerText = "更新完了";
             } catch (e) { st.innerText = "気象取得失敗"; }
         }, (e) => { st.innerText = "GPS失敗"; }, {enableHighAccuracy:true, timeout:8000});
@@ -359,7 +367,7 @@
             document.getElementById('env_uv').value = log.environment_data.uv || "";
         }
 
-        document.getElementById('envDisplay').innerText = `[過去データ読込済] 気温: ${log.temperature}℃ / 湿度: ${log.humidity}%`;
+        document.getElementById('envDisplay').innerText = `[過去データ読込済] 天気: ${log.weather} / 気温: ${log.temperature}℃ / 湿度: ${log.humidity}%`;
 
         editingIndex = index;
         const btnSave = document.getElementById('btn_save_main');
@@ -388,7 +396,6 @@
         document.getElementById('btn_cancel_edit').style.display = "none";
     }
 
-    // ★追加: すべて選択機能
     function toggleSelectAll() {
         const checkboxes = document.querySelectorAll('.log-chk');
         const allChecked = Array.from(checkboxes).every(cb => cb.checked);
@@ -431,7 +438,7 @@
                     </div>
                     <div class="log-card-body">${l.location || "---"} RS:${l.rs || "---"} <span class="log-card-tag">${l.memo || ""}</span></div>
                     <div class="log-card-actions">
-                        <button onclick="editLog(${realIndex})">✏️ 編集</button>
+                        <button onclick="editLog(${realIndex})">編集</button>
                     </div>
                 </div>
             `;
@@ -439,7 +446,6 @@
         });
     }
 
-    // ★修正: 選択されたログのみをJSON書き出し
     async function exportAndShare() {
         const allLogs = JSON.parse(localStorage.getItem('radioLogs') || '[]');
         if (allLogs.length === 0) {
@@ -457,7 +463,6 @@
                 return;
             }
         } else {
-            // チェックされたログのインデックスを取得し、母艦PCで時系列が狂わないよう昇順(古い順)に並べ替える
             let indices = Array.from(checkboxes).map(cb => parseInt(cb.value)).sort((a, b) => a - b);
             exportLogs = indices.map(idx => allLogs[idx]);
         }
