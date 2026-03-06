@@ -55,7 +55,7 @@
 <body>
 
 <div class="container">
-    <h2>Radio Logbook Mobile β</h2>
+    <h2>RADIO LOGBOOK MOBILE</h2>
     <div id="status">システム待機中</div>
 
     <button type="button" class="btn-start" onclick="setNowAndFetch()">現在地/天候情報の取得更新</button>
@@ -87,6 +87,7 @@
                 <option value="デジタル簡易無線/DCR">デジタル簡易無線/DCR</option>
                 <option value="特定小電力無線/SLPR">特定小電力無線/SLPR</option>
                 <option value="デジタル小電力コミュニティ無線/LCR">デジタル小電力コミュニティ/LCR</option>
+                <option value="アマチュア無線">アマチュア無線</option>
             </select>
         </div>
         <div class="form-group"><label>CH</label><input type="text" id="channel" placeholder="3" autocapitalize="characters" oninput="toHalfWidth(this)"></div>
@@ -141,17 +142,17 @@
 
     <div class="list-header">
         <div id="logCount">保存済み: 0件</div>
-        <button type="button" class="btn-clear" onclick="toggleSelectAll()" style="width:auto; padding: 6px 12px; margin: 0; font-size: 0.75rem;">すべて選択</button>
+        <button type="button" class="btn-clear" onclick="toggleSelectAll()" style="width:auto; padding: 6px 12px; margin: 0; font-size: 0.75rem;">☑ すべて選択</button>
     </div>
     
     <div id="logListContainer"></div>
 
     <div class="row" style="margin-top: 15px;">
         <div style="flex: 1;">
-            <button type="button" class="btn-clear" onclick="deleteSelectedLogs()" style="background-color:#8a2e2e; margin:0; height: 100%;">選択削除</button>
+            <button type="button" class="btn-clear" onclick="deleteSelectedLogs()" style="background-color:#8a2e2e; margin:0; height: 100%;">🗑 選択削除</button>
         </div>
         <div style="flex: 2;">
-            <button type="button" class="btn-export" onclick="exportAndShare()" style="margin:0; background-color:#0056b3; border-bottom-color:#003366; height: 100%;">選択ログを転送</button>
+            <button type="button" class="btn-export" onclick="exportAndShare()" style="margin:0; background-color:#0056b3; border-bottom-color:#003366; height: 100%;">📤 選択ログを転送</button>
         </div>
     </div>
 
@@ -187,7 +188,7 @@
             input.value = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
             if (btn) {
                 btn.classList.add('active');
-                btn.innerText = "✔";
+                btn.innerText = "✔ セット済";
             }
         }
     }
@@ -438,7 +439,7 @@
                     </div>
                     <div class="log-card-body">${l.location || "---"} RS:${l.rs || "---"} <span class="log-card-tag">${l.memo || ""}</span></div>
                     <div class="log-card-actions">
-                        <button onclick="editLog(${realIndex})">編集</button>
+                        <button onclick="editLog(${realIndex})">✏️ 編集</button>
                     </div>
                 </div>
             `;
