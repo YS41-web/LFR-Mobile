@@ -11,7 +11,9 @@
         h2 { text-align: center; color: #0099ff; margin-top: 5px; font-size: 1rem; letter-spacing: 3px; border-bottom: 2px solid #333; padding-bottom: 10px; font-weight: 900; }
         
         .form-group { margin-bottom: 15px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.75rem; color: #888; letter-spacing: 1px; }
+        
+        /* ★修正：ラベルを「鮮やかなブルー」にして視認性を爆上げ */
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.8rem; color: #00aaff; letter-spacing: 1px; }
         
         /* ★高さのズレを解消するため height: 48px に完全固定し、デフォルトスタイルをリセット */
         input[type="text"], input[type="number"], input[type="time"], input[type="date"], select, textarea { 
@@ -20,6 +22,9 @@
         }
         textarea { height: auto; padding: 12px; }
         input:focus, select:focus, textarea:focus { border-color: #0099ff; outline: none; }
+        
+        /* ★修正：プレースホルダー（入力欄の中の説明）を意図的に少し暗くしてラベルと明確に区別 */
+        input::placeholder, textarea::placeholder { color: #666666; }
         
         .row { display: flex; gap: 8px; }
         .row > div { flex: 1; }
@@ -104,7 +109,7 @@
                 <div class="chip active" data-value="市民ラジオ/CB" onclick="setBand('市民ラジオ/CB', this)">CB</div>
                 <div class="chip" data-value="デジタル簡易無線/DCR" onclick="setBand('デジタル簡易無線/DCR', this)">DCR</div>
                 <div class="chip" data-value="特定小電力無線/SLPR" onclick="setBand('特定小電力無線/SLPR', this)">特小</div>
-                <div class="chip" data-value="デジタル小電力コミュニティ無線/LCR" onclick="setBand('デジタル小電力コミュニ無線/LCR', this)">LCR</div>
+                <div class="chip" data-value="デジタル小電力コミュニティ無線/LCR" onclick="setBand('デジタル小電力コミュニティ無線/LCR', this)">LCR</div>
             </div>
             <input type="hidden" id="band" value="市民ラジオ/CB">
         </div>
