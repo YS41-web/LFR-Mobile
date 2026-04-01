@@ -14,7 +14,6 @@
         
         label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.8rem; color: #00aaff; letter-spacing: 1px; }
         
-        /* type="email" を追加してスタイルが崩れないように対応 */
         input[type="text"], input[type="number"], input[type="time"], input[type="date"], input[type="email"], select, textarea { 
             width: 100%; height: 48px; padding: 0 12px; border: 1px solid #333; border-radius: 4px; box-sizing: border-box; 
             font-size: 1rem; background-color: #2a2a2a; color: #fff; -webkit-appearance: none; 
@@ -94,7 +93,6 @@
     
     <div class="row">
         <div class="form-group"><label>CALLSIGN</label><input type="text" id="callsign" placeholder="相手局コール" autocomplete="off" oninput="toHalfWidth(this); this.value = this.value.toUpperCase();"></div>
-        
         <div class="form-group"><label>RS</label><input type="email" id="rs" placeholder="59/59" autocomplete="off" autocapitalize="characters" oninput="toHalfWidth(this); this.value = this.value.toUpperCase();" onblur="autoFormatRS(this)"></div>
     </div>
 
@@ -131,7 +129,13 @@
         </div>
     </div>
     
-    <div class="form-group"><label>LOCATION (相手局運用地)</label><input type="text" id="location" placeholder="地名・住所・山岳名など" autocomplete="off"></div>
+    <div class="form-group">
+        <label>LOCATION (相手局運用地)</label>
+        <div class="input-with-btn">
+            <input type="text" id="location" placeholder="地名・住所・山岳名など" autocomplete="off">
+            <button type="button" class="btn-now" onclick="calculateTargetAndWeather()" style="background-color:#0056b3; border-color:#003366; color:#fff; font-weight:bold;">📏 距離/気象</button>
+        </div>
+    </div>
     
     <div class="row">
         <div class="form-group"><label>標高 (m)</label><input type="number" id="remote_altitude" inputmode="numeric" oninput="toHalfWidth(this)"></div>
@@ -184,13 +188,15 @@
 
 <script>
     let editingIndex = -1; 
+    // ★ 相手局と中間点の気象データを保持するグローバル変数
+    let currentOpponentWeather = null;
+    let currentMidpointWeather = null;
+    let currentRemoteCoords = null;
 
     function toHalfWidth(el) {
-        // 全角英数字を半角に変換する処理
         el.value = el.value.replace(/[！-～]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
     }
 
-    // ★ RSの魔法補完（「59」と打って欄から離れると「59/59」になる）
     function autoFormatRS(el) {
         let val = el.value.trim().toUpperCase(); 
         if (/^[A-Z0-9]{2}$/.test(val)) {
@@ -301,7 +307,7 @@
                 let wText = "不明";
                 const code = cur.weather_code;
                 if (code === 0) wText = "快晴";
-                else if (code <= 3) wText = "晴れ/曇り";
+                else if (code <= 3) wText = "晴/曇";
                 else if (code <= 49) wText = "霧";
                 else if (code <= 69) wText = "雨";
                 else if (code <= 79) wText = "雪";
@@ -321,6 +327,115 @@
         }, (e) => { st.innerText = "GPS失敗"; }, {enableHighAccuracy:true, timeout:8000});
     }
 
+    // ★ 新機能：距離計算 ＆ 気象データバックグラウンド取得エンジン
+    async function calculateTargetAndWeather() {
+        const tgt = document.getElementById('location').value.trim();
+        let myLat = parseFloat(document.getElementById('my_lat').value);
+        let myLon = parseFloat(document.getElementById('my_lon').value);
+        const st = document.getElementById('status');
+
+        if (!tgt) { alert("LOCATION (運用地) を入力してください。"); return; }
+        if (isNaN(myLat) || isNaN(myLon)) { alert("自局の座標が不明です。先に「現在地/天候情報の取得」を行ってください。"); return; }
+
+        st.innerText = "座標と気象を解析中...";
+        st.style.color = "#00aaff";
+
+        try {
+            // 1. ジオコーディング (地名から緯度経度へ)
+            let tgtLat, tgtLon;
+            const coordsMatch = tgt.match(/([+-]?\d+\.\d+)[,\s]+([+-]?\d+\.\d+)/);
+            if (coordsMatch) {
+                tgtLat = parseFloat(coordsMatch[1]);
+                tgtLon = parseFloat(coordsMatch[2]);
+            } else {
+                const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(tgt)}&format=json&limit=1`, { headers: {'User-Agent': 'RadioLogbookMobile/1.0'} });
+                const geoData = await geoRes.json();
+                if (geoData.length > 0) {
+                    tgtLat = parseFloat(geoData[0].lat);
+                    tgtLon = parseFloat(geoData[0].lon);
+                } else {
+                    alert("運用地の座標が特定できませんでした。");
+                    st.innerText = "解析失敗"; st.style.color = "#ff9900";
+                    return;
+                }
+            }
+            currentRemoteCoords = { lat: tgtLat, lon: tgtLon };
+
+            // 2. 距離と方位の計算 (Haversine)
+            const toRad = x => x * Math.PI / 180;
+            const R = 6371; 
+            const dLat = toRad(tgtLat - myLat), dLon = toRad(tgtLon - myLon);
+            const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(toRad(myLat))*Math.cos(toRad(tgtLat))*Math.sin(dLon/2)*Math.sin(dLon/2);
+            const dist = R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+            document.getElementById('distance').value = dist.toFixed(1);
+
+            const y = Math.sin(dLon) * Math.cos(toRad(tgtLat));
+            const x = Math.cos(toRad(myLat))*Math.sin(toRad(tgtLat)) - Math.sin(toRad(myLat))*Math.cos(toRad(tgtLat))*Math.cos(dLon);
+            let bearing = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+            
+            const dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+            const dirStr = dirs[Math.round(bearing / 22.5) % 16];
+
+            // 3. 相手局と中間点の標高＆気象取得
+            const midLat = (myLat + tgtLat) / 2.0;
+            const midLon = (myLon + tgtLon) / 2.0;
+
+            async function getWeatherAndElev(lat, lon, manualElevStr) {
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,weather_code&elevation=nan&timezone=Asia%2FTokyo`;
+                const res = await fetch(url);
+                const data = await res.json();
+                const cur = data.current;
+                let temp = cur.temperature_2m;
+                let finalElev = data.elevation;
+
+                // 標高による気温補正
+                if (manualElevStr && manualElevStr.trim() !== "") {
+                    finalElev = parseFloat(manualElevStr);
+                    if (!isNaN(finalElev) && !isNaN(temp) && data.elevation) {
+                        temp = Math.round((temp - ((finalElev - data.elevation) / 100.0 * 0.6)) * 10) / 10;
+                    }
+                }
+                return {
+                    weather: {
+                        temperature: temp,
+                        humidity: cur.relative_humidity_2m,
+                        pressure: cur.surface_pressure,
+                        wind_speed: cur.wind_speed_10m,
+                        weathercode: cur.weather_code
+                    },
+                    elevation: finalElev
+                };
+            }
+
+            // 相手局の取得
+            const oppData = await getWeatherAndElev(tgtLat, tgtLon, document.getElementById('remote_altitude').value);
+            currentOpponentWeather = oppData.weather;
+            if (!document.getElementById('remote_altitude').value && oppData.elevation) {
+                document.getElementById('remote_altitude').value = Math.round(oppData.elevation);
+            }
+
+            // 中間点の取得
+            const midData = await getWeatherAndElev(midLat, midLon, null);
+            currentMidpointWeather = midData.weather;
+
+            // メモ欄に追記
+            const memoEl = document.getElementById('memo');
+            const note = ` (${dirStr} ${dist.toFixed(1)}km)`;
+            if (!memoEl.value.includes(note)) {
+                memoEl.value = (memoEl.value + note).trim();
+            }
+
+            st.innerText = "気象プロファイル取得完了！";
+            st.style.color = "#00ff41";
+            setTimeout(() => { st.innerText = "システム待機中"; st.style.color = "#ff9900"; }, 3000);
+
+        } catch (e) {
+            console.error(e);
+            st.innerText = "通信エラー";
+            st.style.color = "#ff0000";
+        }
+    }
+
     function saveLog() {
         const call = document.getElementById('callsign').value.trim();
         if (!call) { alert("コールサインを入力してください。"); return; }
@@ -336,6 +451,7 @@
             slprMode = (mode === "レピーター" && rpt) ? `${mode}(${rpt})` : mode;
         }
 
+        // ★ 保存時に currentOpponentWeather と currentMidpointWeather を JSON に格納
         const log = {
             callsign: call,
             start_time: `${date} ${document.getElementById('time').value}`,
@@ -358,6 +474,10 @@
             pressure: document.getElementById('env_press').value,
             wind_speed: document.getElementById('env_wind').value,
             environment_data: { cape: document.getElementById('env_cape').value, uv: document.getElementById('env_uv').value },
+            opponent_weather: currentOpponentWeather, // 追加
+            midpoint_weather: currentMidpointWeather, // 追加
+            remote_latitude: currentRemoteCoords ? currentRemoteCoords.lat : null,
+            remote_longitude: currentRemoteCoords ? currentRemoteCoords.lon : null,
             is_failure: (call.toUpperCase().includes("CQ")),
             is_synced: false
         };
@@ -377,6 +497,7 @@
         localStorage.setItem('radioLogs', JSON.stringify(logs));
         updateList();
         
+        // クリア処理
         document.getElementById('callsign').value = "";
         document.getElementById('rs').value = "";
         document.getElementById('memo').value = "";
@@ -385,6 +506,10 @@
         document.getElementById('distance').value = "";
         document.getElementById('end_time').value = "";
         
+        currentOpponentWeather = null;
+        currentMidpointWeather = null;
+        currentRemoteCoords = null;
+
         resetNowBtn('time');
         resetNowBtn('end_time');
     }
@@ -432,9 +557,17 @@
         document.getElementById('env_hum').value = log.humidity || "";
         document.getElementById('env_press').value = log.pressure || "";
         document.getElementById('env_wind').value = log.wind_speed || "";
+        
         if(log.environment_data) {
             document.getElementById('env_cape').value = log.environment_data.cape || "";
             document.getElementById('env_uv').value = log.environment_data.uv || "";
+        }
+
+        // 編集時にメモリに読み込む
+        currentOpponentWeather = log.opponent_weather || null;
+        currentMidpointWeather = log.midpoint_weather || null;
+        if(log.remote_latitude && log.remote_longitude) {
+            currentRemoteCoords = { lat: log.remote_latitude, lon: log.remote_longitude };
         }
 
         document.getElementById('envDisplay').innerText = `[過去データ読込済] 天気: ${log.weather} / 気温: ${log.temperature}℃ / 湿度: ${log.humidity}%`;
