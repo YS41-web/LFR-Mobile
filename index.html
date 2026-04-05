@@ -6,12 +6,11 @@
     <title>Radio Logbook - Mobile Edge</title>
     <style>
         /* 深夜の山頂でも眩しくないダークスキーム */
-        body { font-family: "Hiragino Sans", "Meiryo", sans-serif; background-color: #121212; margin: 0; padding: 10px; color: #d0d0d0; }
-        .container { max-width: 600px; margin: 0 auto; background: #1e1e1e; padding: 15px; border-radius: 2px; border: 1px solid #333; }
+        body { font-family: "Hiragino Sans", "Meiryo", sans-serif; background-color: #121212; margin: 0; padding: 10px; color: #d0d0d0; transition: background-color 0.3s; }
+        .container { max-width: 600px; margin: 0 auto; background: #1e1e1e; padding: 15px; border-radius: 2px; border: 1px solid #333; transition: all 0.3s; }
         h2 { text-align: center; color: #0099ff; margin-top: 5px; font-size: 1rem; letter-spacing: 3px; border-bottom: 2px solid #333; padding-bottom: 10px; font-weight: 900; }
         
         .form-group { margin-bottom: 15px; }
-        
         label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.8rem; color: #00aaff; letter-spacing: 1px; }
         
         input[type="text"], input[type="number"], input[type="time"], input[type="date"], input[type="email"], select, textarea { 
@@ -37,20 +36,13 @@
         .btn-now { width: auto; margin-bottom: 0; padding: 0 15px; background-color: #333; font-size: 0.8rem; border: 1px solid #444; color: #aaa; }
         .btn-now.active { background-color: #0056b3; border-color: #00aaff; color: #fff; font-weight: bold; }
 
-        .chip-container {
-            display: flex; overflow-x: auto; gap: 8px; height: 48px; align-items: center;
-            -webkit-overflow-scrolling: touch; scrollbar-width: none; 
-        }
+        .chip-container { display: flex; overflow-x: auto; gap: 8px; height: 48px; align-items: center; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         .chip-container::-webkit-scrollbar { display: none; }
-        .chip {
-            flex: 0 0 auto; padding: 0 16px; height: 38px; line-height: 38px;
-            background-color: #2a2a2a; border: 1px solid #444; border-radius: 20px;
-            font-size: 0.85rem; color: #888; font-weight: bold; transition: all 0.2s ease; cursor: pointer;
-        }
+        .chip { flex: 0 0 auto; padding: 0 16px; height: 38px; line-height: 38px; background-color: #2a2a2a; border: 1px solid #444; border-radius: 20px; font-size: 0.85rem; color: #888; font-weight: bold; transition: all 0.2s ease; cursor: pointer; }
         .chip.active { background-color: #0056b3; border-color: #00aaff; color: #fff; }
 
         .env-data { background: #000; padding: 10px; border-radius: 4px; font-size: 0.8rem; color: #00ff41; margin-bottom: 15px; border: 1px solid #222; font-family: "Courier New", monospace; line-height: 1.4; white-space: pre-wrap; }
-        #status { text-align: center; font-weight: bold; color: #ff9900; margin-bottom: 10px; font-size: 0.8rem; letter-spacing: 1px; }
+        #status { text-align: center; font-weight: bold; color: #ff9900; margin-bottom: 10px; font-size: 0.8rem; letter-spacing: 1px; transition: 0.3s; }
         
         #logCount { font-size: 0.8rem; color: #666; font-weight: bold; margin-bottom: 5px; }
         .log-card { background: #252525; border-left: 3px solid #0099ff; padding: 10px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 10px;}
@@ -66,24 +58,41 @@
         #rpt_name_area { display: none; margin-top: 10px; }
         .section-divider { border-top: 1px dashed #444; margin: 20px 0; }
         .list-header { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 20px; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 10px;}
+
+        /* 🔥 パイルアップモード専用CSS 🔥 */
+        .btn-pileup { background-color: #444; border-bottom: 3px solid #222; margin-bottom: 15px; font-size: 1rem; color: #aaa; }
+        .btn-pileup.active { background-color: #cc0000; border-bottom: 3px solid #880000; color: #fff; text-shadow: 1px 1px 2px #000; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.85; } 100% { opacity: 1; } }
+        
+        .pileup-mode .pileup-hide { display: none !important; }
+        .pileup-mode .container { border-color: #cc0000; box-shadow: 0 0 15px rgba(204,0,0,0.3); }
+        .pileup-mode .btn-save { height: 90px; font-size: 1.5rem; background-color: #ff3300; border-bottom: 6px solid #b32400; text-shadow: 1px 1px 2px #000; margin-top: 10px; }
+        .pileup-mode .btn-save:active { transform: translateY(4px); border-bottom: 2px solid #b32400; margin-bottom: 14px; }
+        .pileup-mode #status { font-size: 1rem; color: #ff3300; }
+        .pileup-mode input[type="text"], .pileup-mode input[type="email"] { font-size: 1.2rem; font-weight: bold; } /* 入力文字をデカく */
     </style>
 </head>
 <body>
 
-<div class="container">
+<div class="container" id="mainContainer">
     <h2>Radio Logbook Mobile β</h2>
+    
+    <button type="button" id="btn_pileup" class="btn-pileup" onclick="togglePileupMode()">⚡ パイルアップモード: OFF</button>
+    
     <div id="status">システム待機中</div>
 
-    <button type="button" class="btn-start" onclick="setNowAndFetch()">現在地/天候情報の取得更新</button>
-    <div id="envDisplay" class="env-data">環境データ未取得</div>
+    <div class="pileup-hide">
+        <button type="button" class="btn-start" onclick="setNowAndFetch()">現在地/天候情報の取得更新</button>
+        <div id="envDisplay" class="env-data">環境データ未取得</div>
+    </div>
 
     <input type="hidden" id="my_lat"><input type="hidden" id="my_lon"><input type="hidden" id="my_alt">
     <input type="hidden" id="env_weather"><input type="hidden" id="env_temp"><input type="hidden" id="env_hum">
     <input type="hidden" id="env_press"><input type="hidden" id="env_wind">
     <input type="hidden" id="env_cape"><input type="hidden" id="env_uv">
 
-    <div class="form-group"><label>DATE (年月日)</label><input type="date" id="date"></div>
-    <div class="form-group">
+    <div class="form-group pileup-hide"><label>DATE (年月日)</label><input type="date" id="date"></div>
+    <div class="form-group pileup-hide">
         <label>START TIME (開始)</label>
         <div class="input-with-btn">
             <input type="time" id="time" oninput="resetNowBtn('time')">
@@ -98,7 +107,7 @@
 
     <div class="row">
         <div class="form-group" style="flex: 3; min-width: 0;">
-            <label>BAND (タップして選択)</label>
+            <label>BAND (タップで選択)</label>
             <div class="chip-container" id="band_chips">
                 <div class="chip active" data-value="市民ラジオ/CB" onclick="setBand('市民ラジオ/CB', this)">CB</div>
                 <div class="chip" data-value="デジタル簡易無線/DCR" onclick="setBand('デジタル簡易無線/DCR', this)">DCR</div>
@@ -107,14 +116,13 @@
             </div>
             <input type="hidden" id="band" value="市民ラジオ/CB">
         </div>
-        
         <div class="form-group" style="flex: 1; min-width: 60px;">
             <label>CH</label>
             <input type="email" id="channel" placeholder="3" autocomplete="off" autocapitalize="characters" oninput="toHalfWidth(this); this.value = this.value.toUpperCase();">
         </div>
     </div>
 
-    <div id="slpr_area">
+    <div id="slpr_area" class="pileup-hide">
         <div class="form-group">
             <label>特小モード</label>
             <div class="chip-container" id="mode_chips">
@@ -129,7 +137,7 @@
         </div>
     </div>
     
-    <div class="form-group">
+    <div class="form-group pileup-hide">
         <label>LOCATION (相手局運用地)</label>
         <div class="input-with-btn">
             <input type="text" id="location" placeholder="地名・住所・山岳名など" autocomplete="off">
@@ -137,17 +145,17 @@
         </div>
     </div>
     
-    <div class="row">
+    <div class="row pileup-hide">
         <div class="form-group"><label>標高 (m)</label><input type="number" id="remote_altitude" inputmode="numeric" oninput="toHalfWidth(this)"></div>
         <div class="form-group"><label>距離 (km)</label><input type="number" step="0.1" id="distance" inputmode="decimal" oninput="toHalfWidth(this)"></div>
     </div>
 
-    <div class="form-group"><label>TAG (使用リグ/アンテナ)</label><input type="text" id="tag" placeholder="例: RJ-60" autocomplete="off"></div>
-    <div class="form-group"><label>REMARKS (備考/メモ)</label><textarea id="memo" rows="2" placeholder="交信内容など" autocomplete="off"></textarea></div>
+    <div class="form-group pileup-hide"><label>TAG (使用リグ/アンテナ)</label><input type="text" id="tag" placeholder="例: RJ-60" autocomplete="off"></div>
+    <div class="form-group pileup-hide"><label>REMARKS (備考/メモ)</label><textarea id="memo" rows="2" placeholder="交信内容など" autocomplete="off"></textarea></div>
 
-    <div class="section-divider"></div>
+    <div class="section-divider pileup-hide"></div>
 
-    <div class="form-group">
+    <div class="form-group pileup-hide">
         <label>END TIME (終了時刻)</label>
         <div class="input-with-btn">
             <input type="time" id="end_time" oninput="resetNowBtn('end_time')">
@@ -159,39 +167,68 @@
         <div style="flex: 2;">
             <button type="button" id="btn_save_main" class="btn-save" onclick="saveLog()">記録保存</button>
         </div>
-        <div style="flex: 1;">
+        <div style="flex: 1;" class="pileup-hide">
             <button type="button" class="btn-bozu" onclick="recordBozu()">ボウズ</button>
         </div>
     </div>
     
-    <button type="button" id="btn_cancel_edit" class="btn-clear" onclick="cancelEdit()" style="display:none; background-color:#666;">編集をキャンセル</button>
-    <button type="button" class="btn-clear" onclick="clearForm()">フィールドクリア</button>
+    <div class="pileup-hide">
+        <button type="button" id="btn_cancel_edit" class="btn-clear" onclick="cancelEdit()" style="display:none; background-color:#666;">編集をキャンセル</button>
+        <button type="button" class="btn-clear" onclick="clearForm()">フィールドクリア</button>
 
-    <div class="list-header">
-        <div id="logCount">保存済み: 0件</div>
-        <button type="button" class="btn-clear" onclick="toggleSelectAll()" style="width:auto; padding: 6px 12px; margin: 0; font-size: 0.75rem;">すべて選択</button>
-    </div>
-    
-    <div id="logListContainer"></div>
-
-    <div class="row" style="margin-top: 15px;">
-        <div style="flex: 1;">
-            <button type="button" class="btn-clear" onclick="deleteSelectedLogs()" style="background-color:#8a2e2e; margin:0; height: 100%;">🗑 選択削除</button>
+        <div class="list-header">
+            <div id="logCount">保存済み: 0件</div>
+            <button type="button" class="btn-clear" onclick="toggleSelectAll()" style="width:auto; padding: 6px 12px; margin: 0; font-size: 0.75rem;">すべて選択</button>
         </div>
-        <div style="flex: 2;">
-            <button type="button" class="btn-export" onclick="exportAndShare()" style="margin:0; background-color:#0056b3; border-bottom-color:#003366; height: 100%;">選択ログを転送</button>
-        </div>
-    </div>
+        
+        <div id="logListContainer"></div>
 
-    <button type="button" class="btn-clear" onclick="clearAllLogs()" style="margin-top:20px; background-color:#500;">全ログ抹消</button>
+        <div class="row" style="margin-top: 15px;">
+            <div style="flex: 1;">
+                <button type="button" class="btn-clear" onclick="deleteSelectedLogs()" style="background-color:#8a2e2e; margin:0; height: 100%;">🗑 選択削除</button>
+            </div>
+            <div style="flex: 2;">
+                <button type="button" class="btn-export" onclick="exportAndShare()" style="margin:0; background-color:#0056b3; border-bottom-color:#003366; height: 100%;">選択ログを転送</button>
+            </div>
+        </div>
+
+        <button type="button" class="btn-clear" onclick="clearAllLogs()" style="margin-top:20px; background-color:#500;">全ログ抹消</button>
+    </div>
 </div>
 
 <script>
     let editingIndex = -1; 
-    // ★ 相手局と中間点の気象データを保持するグローバル変数
     let currentOpponentWeather = null;
     let currentMidpointWeather = null;
     let currentRemoteCoords = null;
+    
+    // ★ パイルアップモードのフラグ
+    let isPileupMode = false;
+
+    // ★ パイルアップモード切替関数
+    function togglePileupMode() {
+        isPileupMode = !isPileupMode;
+        const body = document.body;
+        const btn = document.getElementById('btn_pileup');
+        
+        if(isPileupMode) {
+            body.classList.add('pileup-mode');
+            btn.classList.add('active');
+            btn.innerText = "パイルアップモード: ON ";
+            // モードON時に、万が一時間が入っていなければ今日の日付を入れておく（保存時に時刻は自動補完される）
+            if(!document.getElementById('date').value) {
+                const n = new Date();
+                document.getElementById('date').value = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+            }
+            // スクロールを一番上に戻してコールサインにフォーカス
+            window.scrollTo(0, 0);
+            document.getElementById('callsign').focus();
+        } else {
+            body.classList.remove('pileup-mode');
+            btn.classList.remove('active');
+            btn.innerText = "⚡ パイルアップモード: OFF";
+        }
+    }
 
     function toHalfWidth(el) {
         el.value = el.value.replace(/[！-～]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
@@ -327,7 +364,6 @@
         }, (e) => { st.innerText = "GPS失敗"; }, {enableHighAccuracy:true, timeout:8000});
     }
 
-    // ★ 新機能：距離計算 ＆ 気象データバックグラウンド取得エンジン
     async function calculateTargetAndWeather() {
         const tgt = document.getElementById('location').value.trim();
         let myLat = parseFloat(document.getElementById('my_lat').value);
@@ -341,7 +377,6 @@
         st.style.color = "#00aaff";
 
         try {
-            // 1. ジオコーディング (地名から緯度経度へ)
             let tgtLat, tgtLon;
             const coordsMatch = tgt.match(/([+-]?\d+\.\d+)[,\s]+([+-]?\d+\.\d+)/);
             if (coordsMatch) {
@@ -361,7 +396,6 @@
             }
             currentRemoteCoords = { lat: tgtLat, lon: tgtLon };
 
-            // 2. 距離と方位の計算 (Haversine)
             const toRad = x => x * Math.PI / 180;
             const R = 6371; 
             const dLat = toRad(tgtLat - myLat), dLon = toRad(tgtLon - myLon);
@@ -376,7 +410,6 @@
             const dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
             const dirStr = dirs[Math.round(bearing / 22.5) % 16];
 
-            // 3. 相手局と中間点の標高＆気象取得
             const midLat = (myLat + tgtLat) / 2.0;
             const midLon = (myLon + tgtLon) / 2.0;
 
@@ -388,7 +421,6 @@
                 let temp = cur.temperature_2m;
                 let finalElev = data.elevation;
 
-                // 標高による気温補正
                 if (manualElevStr && manualElevStr.trim() !== "") {
                     finalElev = parseFloat(manualElevStr);
                     if (!isNaN(finalElev) && !isNaN(temp) && data.elevation) {
@@ -407,18 +439,15 @@
                 };
             }
 
-            // 相手局の取得
             const oppData = await getWeatherAndElev(tgtLat, tgtLon, document.getElementById('remote_altitude').value);
             currentOpponentWeather = oppData.weather;
             if (!document.getElementById('remote_altitude').value && oppData.elevation) {
                 document.getElementById('remote_altitude').value = Math.round(oppData.elevation);
             }
 
-            // 中間点の取得
             const midData = await getWeatherAndElev(midLat, midLon, null);
             currentMidpointWeather = midData.weather;
 
-            // メモ欄に追記
             const memoEl = document.getElementById('memo');
             const note = ` (${dirStr} ${dist.toFixed(1)}km)`;
             if (!memoEl.value.includes(note)) {
@@ -440,7 +469,16 @@
         const call = document.getElementById('callsign').value.trim();
         if (!call) { alert("コールサインを入力してください。"); return; }
         
-        const date = document.getElementById('date').value;
+        let dateVal = document.getElementById('date').value;
+        let timeVal = document.getElementById('time').value;
+        
+        // ★ パイルアップモード時は、強制的に「今」の時間を打刻する
+        if (isPileupMode || !timeVal || !dateVal) {
+            const n = new Date();
+            dateVal = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+            timeVal = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
+        }
+        
         const lat = parseFloat(document.getElementById('my_lat').value) || null;
         const lon = parseFloat(document.getElementById('my_lon').value) || null;
 
@@ -451,11 +489,10 @@
             slprMode = (mode === "レピーター" && rpt) ? `${mode}(${rpt})` : mode;
         }
 
-        // ★ 保存時に currentOpponentWeather と currentMidpointWeather を JSON に格納
         const log = {
             callsign: call,
-            start_time: `${date} ${document.getElementById('time').value}`,
-            end_time: document.getElementById('end_time').value ? `${date} ${document.getElementById('end_time').value}` : "",
+            start_time: `${dateVal} ${timeVal}`,
+            end_time: document.getElementById('end_time').value ? `${dateVal} ${document.getElementById('end_time').value}` : "",
             band: document.getElementById('band').value,
             channel: document.getElementById('channel').value,
             rs: document.getElementById('rs').value,
@@ -474,8 +511,8 @@
             pressure: document.getElementById('env_press').value,
             wind_speed: document.getElementById('env_wind').value,
             environment_data: { cape: document.getElementById('env_cape').value, uv: document.getElementById('env_uv').value },
-            opponent_weather: currentOpponentWeather, // 追加
-            midpoint_weather: currentMidpointWeather, // 追加
+            opponent_weather: currentOpponentWeather,
+            midpoint_weather: currentMidpointWeather,
             remote_latitude: currentRemoteCoords ? currentRemoteCoords.lat : null,
             remote_longitude: currentRemoteCoords ? currentRemoteCoords.lon : null,
             is_failure: (call.toUpperCase().includes("CQ")),
@@ -491,30 +528,42 @@
             resetEditModeUI();
         } else {
             logs.push(log);
-            document.getElementById('status').innerText = "記録を保存しました";
+            document.getElementById('status').innerText = "記録保存！次の局をどうぞ！";
         }
         
         localStorage.setItem('radioLogs', JSON.stringify(logs));
         updateList();
         
-        // クリア処理
-        document.getElementById('callsign').value = "";
-        document.getElementById('rs').value = "";
-        document.getElementById('memo').value = "";
-        document.getElementById('location').value = "";
-        document.getElementById('remote_altitude').value = "";
-        document.getElementById('distance').value = "";
-        document.getElementById('end_time').value = "";
-        
-        currentOpponentWeather = null;
-        currentMidpointWeather = null;
-        currentRemoteCoords = null;
-
-        resetNowBtn('time');
-        resetNowBtn('end_time');
+        // ★ パイルアップモード時の特殊なクリア処理（無限ループ用）
+        if (isPileupMode) {
+            document.getElementById('callsign').value = "";
+            document.getElementById('rs').value = ""; // RSは毎回打つことが多いのでクリア
+            // ※CHやBANDはそのまま残す
+            window.scrollTo(0, 0); // スクロールを一番上に戻す
+            document.getElementById('callsign').focus(); // コールサインにカーソルを戻す
+        } else {
+            // 通常のクリア処理
+            document.getElementById('callsign').value = "";
+            document.getElementById('rs').value = "";
+            document.getElementById('memo').value = "";
+            document.getElementById('location').value = "";
+            document.getElementById('remote_altitude').value = "";
+            document.getElementById('distance').value = "";
+            document.getElementById('end_time').value = "";
+            currentOpponentWeather = null;
+            currentMidpointWeather = null;
+            currentRemoteCoords = null;
+            resetNowBtn('time');
+            resetNowBtn('end_time');
+        }
     }
 
     function editLog(index) {
+        if(isPileupMode) {
+            alert("パイルアップモード中は編集できません。モードをOFFにしてください。");
+            return;
+        }
+        
         const logs = JSON.parse(localStorage.getItem('radioLogs') || '[]');
         const log = logs[index];
 
@@ -563,7 +612,6 @@
             document.getElementById('env_uv').value = log.environment_data.uv || "";
         }
 
-        // 編集時にメモリに読み込む
         currentOpponentWeather = log.opponent_weather || null;
         currentMidpointWeather = log.midpoint_weather || null;
         if(log.remote_latitude && log.remote_longitude) {
