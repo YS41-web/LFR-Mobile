@@ -7,7 +7,7 @@
     <style>
         /* 深夜の山頂でも眩しくないダークスキーム */
         body { font-family: "Hiragino Sans", "Meiryo", sans-serif; background-color: #121212; margin: 0; padding: 10px; color: #d0d0d0; transition: background-color 0.3s; }
-        .container { max-width: 600px; margin: 0 auto; background: #1e1e1e; padding: 15px; border-radius: 2px; border: 1px solid #333; transition: all 0.3s; }
+        .container { max-width: 600px; margin: 0 auto; background: #1e1e1e; padding: 15px; border-radius: 2px; border: 1px solid #333; transition: border-color 0.3s; }
         h2 { text-align: center; color: #0099ff; margin-top: 5px; font-size: 1rem; letter-spacing: 3px; border-bottom: 2px solid #333; padding-bottom: 10px; font-weight: 900; }
         
         .form-group { margin-bottom: 15px; }
@@ -59,17 +59,17 @@
         .section-divider { border-top: 1px dashed #444; margin: 20px 0; }
         .list-header { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 20px; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 10px;}
 
-        /* 🔥 パイルアップモード専用CSS 🔥 */
-        .btn-pileup { background-color: #444; border-bottom: 3px solid #222; margin-bottom: 15px; font-size: 1rem; color: #aaa; }
-        .btn-pileup.active { background-color: #cc0000; border-bottom: 3px solid #880000; color: #fff; text-shadow: 1px 1px 2px #000; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.85; } 100% { opacity: 1; } }
+        /* 🔧 落ち着いたパイルアップモード（集中モード）CSS 🔧 */
+        .btn-pileup { background-color: #333; border-bottom: 3px solid #222; margin-bottom: 15px; font-size: 0.95rem; color: #aaa; letter-spacing: 1px;}
+        .btn-pileup.active { background-color: #b35900; border-bottom: 3px solid #804000; color: #fff; } /* 派手すぎないアンバー（オレンジ） */
         
         .pileup-mode .pileup-hide { display: none !important; }
-        .pileup-mode .container { border-color: #cc0000; box-shadow: 0 0 15px rgba(204,0,0,0.3); }
-        .pileup-mode .btn-save { height: 90px; font-size: 1.5rem; background-color: #ff3300; border-bottom: 6px solid #b32400; text-shadow: 1px 1px 2px #000; margin-top: 10px; }
-        .pileup-mode .btn-save:active { transform: translateY(4px); border-bottom: 2px solid #b32400; margin-bottom: 14px; }
-        .pileup-mode #status { font-size: 1rem; color: #ff3300; }
-        .pileup-mode input[type="text"], .pileup-mode input[type="email"] { font-size: 1.2rem; font-weight: bold; } /* 入力文字をデカく */
+        .pileup-mode .container { border-color: #b35900; } 
+        /* 保存ボタンは元の緑色ベースで巨大化させるだけ */
+        .pileup-mode .btn-save { height: 90px; font-size: 1.5rem; background-color: #2d5a27; border-bottom: 6px solid #1e3d1a; margin-top: 10px; }
+        .pileup-mode .btn-save:active { transform: translateY(4px); border-bottom: 2px solid #1e3d1a; margin-bottom: 14px; }
+        .pileup-mode #status { font-size: 1rem; color: #b35900; }
+        .pileup-mode input[type="text"], .pileup-mode input[type="email"] { font-size: 1.2rem; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -77,7 +77,7 @@
 <div class="container" id="mainContainer">
     <h2>Radio Logbook Mobile β</h2>
     
-    <button type="button" id="btn_pileup" class="btn-pileup" onclick="togglePileupMode()">⚡ パイルアップモード: OFF</button>
+    <button type="button" id="btn_pileup" class="btn-pileup" onclick="togglePileupMode()">パイルアップモード: OFF</button>
     
     <div id="status">システム待機中</div>
 
@@ -107,7 +107,7 @@
 
     <div class="row">
         <div class="form-group" style="flex: 3; min-width: 0;">
-            <label>BAND (タップで選択)</label>
+            <label>BAND (スワイプで選択)</label>
             <div class="chip-container" id="band_chips">
                 <div class="chip active" data-value="市民ラジオ/CB" onclick="setBand('市民ラジオ/CB', this)">CB</div>
                 <div class="chip" data-value="デジタル簡易無線/DCR" onclick="setBand('デジタル簡易無線/DCR', this)">DCR</div>
@@ -214,19 +214,18 @@
         if(isPileupMode) {
             body.classList.add('pileup-mode');
             btn.classList.add('active');
-            btn.innerText = "パイルアップモード: ON ";
-            // モードON時に、万が一時間が入っていなければ今日の日付を入れておく（保存時に時刻は自動補完される）
+            btn.innerText = "パイルアップモード: ON";
+            // モードON時に、万が一時間が入っていなければ今日の日付を入れておく
             if(!document.getElementById('date').value) {
                 const n = new Date();
                 document.getElementById('date').value = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
             }
-            // スクロールを一番上に戻してコールサインにフォーカス
             window.scrollTo(0, 0);
             document.getElementById('callsign').focus();
         } else {
             body.classList.remove('pileup-mode');
             btn.classList.remove('active');
-            btn.innerText = "⚡ パイルアップモード: OFF";
+            btn.innerText = "パイルアップモード: OFF";
         }
     }
 
@@ -528,21 +527,18 @@
             resetEditModeUI();
         } else {
             logs.push(log);
-            document.getElementById('status').innerText = "記録保存！次の局をどうぞ！";
+            document.getElementById('status').innerText = isPileupMode ? "記録保存！次の局をどうぞ！" : "記録を保存しました";
         }
         
         localStorage.setItem('radioLogs', JSON.stringify(logs));
         updateList();
         
-        // ★ パイルアップモード時の特殊なクリア処理（無限ループ用）
         if (isPileupMode) {
             document.getElementById('callsign').value = "";
-            document.getElementById('rs').value = ""; // RSは毎回打つことが多いのでクリア
-            // ※CHやBANDはそのまま残す
-            window.scrollTo(0, 0); // スクロールを一番上に戻す
-            document.getElementById('callsign').focus(); // コールサインにカーソルを戻す
+            document.getElementById('rs').value = ""; 
+            window.scrollTo(0, 0); 
+            document.getElementById('callsign').focus(); 
         } else {
-            // 通常のクリア処理
             document.getElementById('callsign').value = "";
             document.getElementById('rs').value = "";
             document.getElementById('memo').value = "";
