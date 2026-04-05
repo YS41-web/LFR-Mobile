@@ -107,7 +107,7 @@
 
     <div class="row">
         <div class="form-group" style="flex: 3; min-width: 0;">
-            <label>BAND (スワイプで選択)</label>
+            <label>BAND (タップで選択)</label>
             <div class="chip-container" id="band_chips">
                 <div class="chip active" data-value="市民ラジオ/CB" onclick="setBand('市民ラジオ/CB', this)">CB</div>
                 <div class="chip" data-value="デジタル簡易無線/DCR" onclick="setBand('デジタル簡易無線/DCR', this)">DCR</div>
@@ -527,7 +527,7 @@
             resetEditModeUI();
         } else {
             logs.push(log);
-            document.getElementById('status').innerText = isPileupMode ? "記録保存！次の局をどうぞ！" : "記録を保存しました";
+            document.getElementById('status').innerText = isPileupMode ? "記録保存、次局へ" : "記録を保存しました";
         }
         
         localStorage.setItem('radioLogs', JSON.stringify(logs));
